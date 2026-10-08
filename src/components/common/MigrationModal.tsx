@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from './Button';
 import { Card } from './Card';
 import { useAuth } from '../../hooks/useAuth';
@@ -9,8 +10,9 @@ export function MigrationModal() {
   const { hasLocalProgressToMigrate, migrateLocalProgress, dismissMigration } = useAuth();
   const [migrating, setMigrating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const location = useLocation();
 
-  if (!hasLocalProgressToMigrate) return null;
+  if (location.pathname.startsWith('/admin') || !hasLocalProgressToMigrate) return null;
 
   const totalStars = getTotalStars();
   const stats = getStoredPlayerStats();

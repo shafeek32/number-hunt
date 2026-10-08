@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const NAV_ITEMS = [
   { to: '/',            label: 'Home',        icon: '⊙' },
@@ -9,6 +9,11 @@ const NAV_ITEMS = [
 ];
 
 export function MobileNavigation() {
+  const location = useLocation();
+
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
   return (
     <nav
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface)] border-t border-[var(--color-border)]"

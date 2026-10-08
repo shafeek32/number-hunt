@@ -13,7 +13,19 @@ import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { NotFound } from './pages/NotFound';
-import { Admin } from './pages/Admin';
+
+// Admin Suite Components
+import { AdminGuard } from './components/admin/AdminGuard';
+import { AdminLayout } from './components/admin/AdminLayout';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { AdminUsers } from './pages/admin/AdminUsers';
+import { AdminUserDetail } from './pages/admin/AdminUserDetail';
+import { AdminGames } from './pages/admin/AdminGames';
+import { AdminLeaderboard } from './pages/admin/AdminLeaderboard';
+import { AdminLevels } from './pages/admin/AdminLevels';
+import { AdminAchievements } from './pages/admin/AdminAchievements';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminSettings } from './pages/admin/AdminSettings';
 
 export function App() {
   return (
@@ -24,6 +36,7 @@ export function App() {
         <MigrationModal />
 
         <Routes>
+          {/* Main Number Hunt Gameplay & Community Routes */}
           <Route path="/"            element={<Home />} />
           <Route path="/levels"      element={<LevelSelect />} />
           <Route path="/game"        element={<Game />} />
@@ -33,8 +46,29 @@ export function App() {
           <Route path="/profile"     element={<Profile />} />
           <Route path="/login"       element={<Login />} />
           <Route path="/signup"      element={<Signup />} />
-          <Route path="/admin"       element={<Admin />} />
-          <Route path="*"            element={<NotFound />} />
+
+          {/* Secure Admin Console Suite */}
+          <Route
+            path="/admin"
+            element={
+              <AdminGuard>
+                <AdminLayout />
+              </AdminGuard>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="users/:id" element={<AdminUserDetail />} />
+            <Route path="games" element={<AdminGames />} />
+            <Route path="leaderboard" element={<AdminLeaderboard />} />
+            <Route path="levels" element={<AdminLevels />} />
+            <Route path="achievements" element={<AdminAchievements />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
+
+          {/* 404 Fallback */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
