@@ -10,6 +10,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { LEVELS } from '../data/levels';
 import { ACHIEVEMENTS } from '../data/achievements';
+import { guestTracker } from '../utils/guestTracker';
 import type {
   DateRangeFilter,
   DashboardMetrics,
@@ -339,12 +340,20 @@ export const adminService = {
         });
       }
 
+      const guestPlayersCount = guestTracker.getGuestPlayersCount();
+      const guestGamesPlayed = guestTracker.getGuestGamesCount();
+      const activeGuestsToday = guestTracker.getActiveGuestsToday();
+
       return {
         totalUsers,
+        registeredUsersCount: totalUsers,
+        guestPlayersCount,
+        guestGamesPlayed,
+        activeGuestsToday,
         newUsersToday,
-        activePlayersToday: activePlayers,
-        gamesStartedToday: gamesStarted,
-        gamesCompletedToday: gamesCompleted,
+        activePlayersToday: activePlayers + activeGuestsToday,
+        gamesStartedToday: gamesStarted + guestGamesPlayed,
+        gamesCompletedToday: gamesCompleted + guestGamesPlayed,
         completionRate: Number(completionRate.toFixed(1)),
         averageScore,
         averageTimeMs,
@@ -366,7 +375,7 @@ export const adminService = {
    */
   async getUsersList(options: {
     search?: string;
-    filter?: 'all' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
+    filter?: 'all' | 'registered' | 'guests' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
     page?: number;
     pageSize?: number;
     sortField?: string;
@@ -454,8 +463,24 @@ export const adminService = {
         };
       });
 
+      // Merge guest players who played Number Hunt
+      const guestUsers = guestTracker.getGuestUsersList();
+      allUsers = [...allUsers, ...guestUsers];
+
+      // Apply Search if query provided
+      if (search.trim()) {
+        const s = search.toLowerCase();
+        allUsers = allUsers.filter(
+          (u) => u.username.toLowerCase().includes(s) || u.displayName.toLowerCase().includes(s)
+        );
+      }
+
       // Apply Filter
-      if (filter === 'active_today') {
+      if (filter === 'registered') {
+        allUsers = allUsers.filter((u) => !u.isGuest);
+      } else if (filter === 'guests') {
+        allUsers = allUsers.filter((u) => u.isGuest);
+      } else if (filter === 'active_today') {
         allUsers = allUsers.filter((u) => u.lastPlayedAt && new Date(u.lastPlayedAt).getTime() >= todayStart);
       } else if (filter === 'new_today') {
         allUsers = allUsers.filter((u) => new Date(u.joinedAt).getTime() >= todayStart);
@@ -494,6 +519,10 @@ export const adminService = {
    * Fetch detailed user profile, stats, level performances, and complete game history.
    */
   async getUserDetail(userId: string): Promise<AdminUserDetail | null> {
+    if (userId.startsWith('guest_')) {
+      return guestTracker.getGuestUserDetail(userId) ?? getMockUserDetail(userId);
+    }
+
     if (!isSupabaseConfigured) {
       return getMockUserDetail(userId);
     }
@@ -1098,12 +1127,20 @@ function getMockDashboardMetrics(filter: DateRangeFilter): DashboardMetrics {
     };
   });
 
+  const guestPlayersCount = guestTracker.getGuestPlayersCount();
+  const guestGamesPlayed = guestTracker.getGuestGamesCount();
+  const activeGuestsToday = guestTracker.getActiveGuestsToday();
+
   return {
     totalUsers: 142,
+    registeredUsersCount: 142,
+    guestPlayersCount,
+    guestGamesPlayed,
+    activeGuestsToday,
     newUsersToday: 12,
-    activePlayersToday: 38,
-    gamesStartedToday: 184,
-    gamesCompletedToday: 172,
+    activePlayersToday: 38 + activeGuestsToday,
+    gamesStartedToday: 184 + guestGamesPlayed,
+    gamesCompletedToday: 172 + guestGamesPlayed,
     completionRate: 93.5,
     averageScore: 98420,
     averageTimeMs: 7850,

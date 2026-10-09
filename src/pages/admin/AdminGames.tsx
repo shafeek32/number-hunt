@@ -321,8 +321,15 @@ export function AdminGames() {
                             {g.avatar}
                           </span>
                           <div>
-                            <div className="font-semibold text-slate-200 group-hover:text-amber-400">
-                              @{g.username}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-200 group-hover:text-amber-400">
+                                @{g.username}
+                              </span>
+                              {g.userId.startsWith('guest_') && (
+                                <span className="px-1.5 py-0.2 rounded text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase font-bold">
+                                  Guest
+                                </span>
+                              )}
                             </div>
                             <div className="text-[10px] text-slate-500">{g.displayName}</div>
                           </div>

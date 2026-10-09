@@ -20,6 +20,7 @@ import { dailyChallengeService } from '../services/dailyChallengeService';
 import { authService } from '../services/authService';
 import { supabase } from '../lib/supabase';
 import { useTimer } from './useTimer';
+import { guestTracker } from '../utils/guestTracker';
 
 export interface UseGameOptions {
   isDaily?: boolean;
@@ -261,6 +262,17 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
                   score,
                 });
               }
+            } else if (!currentUser) {
+              // Track unauthenticated guest gameplay session
+              guestTracker.trackGuestGame({
+                levelId: current.level.id,
+                numberCount: current.level.numberCount,
+                timeMs: finalTime,
+                mistakes: current.mistakes,
+                accuracy,
+                score,
+                stars,
+              });
             }
           });
 

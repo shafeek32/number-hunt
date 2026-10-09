@@ -51,7 +51,11 @@ export interface GamesTimePoint {
 }
 
 export interface DashboardMetrics {
-  totalUsers: number;
+  totalUsers: number; // total registered users
+  registeredUsersCount: number;
+  guestPlayersCount: number; // count of guest players who played
+  guestGamesPlayed: number; // total games played by guests
+  activeGuestsToday: number; // guest players active today
   newUsersToday: number;
   activePlayersToday: number;
   gamesStartedToday: number;
@@ -73,6 +77,7 @@ export interface AdminUserItem {
   username: string;
   displayName: string;
   email: string | null;
+  isGuest?: boolean;
   totalGames: number;
   completedGames: number;
   bestScore: number;

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { adminService, type AdminUserItem } from '../../services/adminService';
 import { formatScore } from '../../utils/scoring';
 
-type FilterType = 'all' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
+type FilterType = 'all' | 'registered' | 'guests' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
 
 function formatDate(iso: string | null): string {
   if (!iso) return 'Never';
@@ -124,6 +124,8 @@ export function AdminUsers() {
           {(
             [
               { key: 'all',          label: 'All Players' },
+              { key: 'registered',   label: '👥 Registered' },
+              { key: 'guests',       label: '👤 Guest Players' },
               { key: 'active_today', label: 'Active Today' },
               { key: 'new_today',    label: 'New Today' },
               { key: 'last_7d',      label: 'Last 7 Days' },
@@ -150,7 +152,7 @@ export function AdminUsers() {
         </div>
 
         <div className="text-xs text-slate-400 font-mono">
-          Showing <b>{users.length}</b> of <b>{totalCount}</b> users
+          Showing <b>{users.length}</b> of <b>{totalCount}</b> players
         </div>
       </div>
 
@@ -231,6 +233,11 @@ export function AdminUsers() {
                             <span className="font-bold text-slate-200 group-hover:text-sky-400 transition-colors">
                               {u.displayName}
                             </span>
+                            {u.isGuest && (
+                              <span className="px-1.5 py-0.2 rounded text-[0.6rem] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase">
+                                Guest
+                              </span>
+                            )}
                             {u.isAdmin && (
                               <span className="px-1.5 py-0.2 rounded text-[0.6rem] font-black bg-amber-500/15 text-amber-400 uppercase">
                                 Admin
@@ -251,7 +258,11 @@ export function AdminUsers() {
 
                     {/* Email */}
                     <td className="py-2.5 px-3 text-slate-400 font-mono text-[0.7rem] truncate max-w-[150px]">
-                      {u.email}
+                      {u.isGuest ? (
+                        <span className="text-slate-500 italic text-[0.68rem]">Guest Session</span>
+                      ) : (
+                        u.email || '—'
+                      )}
                     </td>
 
                     {/* Games */}
@@ -310,19 +321,21 @@ export function AdminUsers() {
                         >
                           View
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleBanToggle(u)}
-                          className={[
-                            'px-2 py-1 text-[0.7rem] font-bold rounded-lg transition-colors cursor-pointer',
-                            u.isBanned
-                              ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
-                              : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20',
-                          ].join(' ')}
-                          title={u.isBanned ? 'Lift player ban' : 'Issue ban'}
-                        >
-                          {u.isBanned ? 'Unban' : 'Ban'}
-                        </button>
+                        {!u.isGuest && (
+                          <button
+                            type="button"
+                            onClick={() => handleBanToggle(u)}
+                            className={[
+                              'px-2 py-1 text-[0.7rem] font-bold rounded-lg transition-colors cursor-pointer',
+                              u.isBanned
+                                ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
+                                : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20',
+                            ].join(' ')}
+                            title={u.isBanned ? 'Lift player ban' : 'Issue ban'}
+                          >
+                            {u.isBanned ? 'Unban' : 'Ban'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

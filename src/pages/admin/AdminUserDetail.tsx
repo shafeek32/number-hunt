@@ -111,18 +111,24 @@ export function AdminUserDetail() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleBanToggle}
-            className={[
-              'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
-              detail.isBanned
-                ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30'
-                : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30',
-            ].join(' ')}
-          >
-            {detail.isBanned ? '✓ Lift Ban' : '🔨 Ban User'}
-          </button>
+          {profile.id.startsWith('guest_') ? (
+            <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              👤 Guest Session
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleBanToggle}
+              className={[
+                'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                detail.isBanned
+                  ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30'
+                  : 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30',
+              ].join(' ')}
+            >
+              {detail.isBanned ? '✓ Lift Ban' : '🔨 Ban User'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -141,6 +147,11 @@ export function AdminUserDetail() {
                 <span className="text-xs font-mono text-slate-400 font-bold">
                   @{profile.username}
                 </span>
+                {profile.id.startsWith('guest_') && (
+                  <span className="px-2 py-0.5 rounded-md text-[0.65rem] font-black uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                    Guest Player
+                  </span>
+                )}
                 {detail.isAdmin && (
                   <span className="px-2 py-0.5 rounded-md text-[0.65rem] font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
                     Administrator
@@ -154,9 +165,19 @@ export function AdminUserDetail() {
               </div>
 
               <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-2 font-mono">
-                <span>📧 {profile.email || `${profile.username}@player.numberhunt`}</span>
-                <span>📅 Joined {formatDate(profile.created_at)}</span>
-                <span>ID: <code className="text-sky-400">{profile.id.slice(0, 8)}...</code></span>
+                {profile.id.startsWith('guest_') ? (
+                  <>
+                    <span className="text-purple-300">👤 Unauthenticated Guest (Local Browser Session)</span>
+                    <span>📅 First Played {formatDate(profile.created_at)}</span>
+                    <span>ID: <code className="text-purple-400">{profile.id}</code></span>
+                  </>
+                ) : (
+                  <>
+                    <span>📧 {profile.email || `${profile.username}@player.numberhunt`}</span>
+                    <span>📅 Joined {formatDate(profile.created_at)}</span>
+                    <span>ID: <code className="text-sky-400">{profile.id.slice(0, 8)}...</code></span>
+                  </>
+                )}
               </div>
             </div>
           </div>

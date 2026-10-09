@@ -69,7 +69,17 @@ export function AdminAnalytics() {
       ) : (
         <>
           {/* ── KPI HIGHLIGHTS ──────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
+              <div className="text-[10px] text-purple-400 uppercase font-semibold">Guest Players Played</div>
+              <div className="text-xl font-black text-purple-300 font-mono mt-1">
+                {metrics.guestPlayersCount.toLocaleString()}
+              </div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                {metrics.guestGamesPlayed.toLocaleString()} guest runs recorded
+              </div>
+            </div>
+
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
               <div className="text-[10px] text-slate-400 uppercase font-semibold">Peak Playtime</div>
               <div className="text-xl font-black text-amber-400 font-mono mt-1">

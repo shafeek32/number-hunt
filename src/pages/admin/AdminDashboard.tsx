@@ -57,6 +57,20 @@ export function AdminDashboard() {
           <p className="text-xs text-slate-400 mt-1 font-medium">
             Here's what's happening with Number Hunt.
           </p>
+
+          {metrics && (
+            <div className="flex items-center gap-2 flex-wrap text-xs mt-3">
+              <span className="px-2.5 py-1 rounded-lg bg-blue-950/40 border border-blue-800/40 text-blue-300 font-medium flex items-center gap-1.5">
+                <span>👥</span> Registered: <strong className="text-white font-mono">{metrics.totalUsers.toLocaleString()}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-purple-950/40 border border-purple-800/40 text-purple-300 font-medium flex items-center gap-1.5">
+                <span>👤</span> Guest Players Played: <strong className="text-white font-mono">{metrics.guestPlayersCount.toLocaleString()}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 font-medium flex items-center gap-1.5">
+                <span>🎮</span> Total Players: <strong className="text-white font-mono">{(metrics.totalUsers + metrics.guestPlayersCount).toLocaleString()}</strong>
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -82,13 +96,20 @@ export function AdminDashboard() {
       ) : metrics ? (
         <>
           {/* ── TOP KPI STATISTICS (SECTION 5) ───────────────────────────── */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <StatCard
-              label="Total Users"
+              label="Registered Users"
               value={metrics.totalUsers.toLocaleString()}
-              sub="Registered players"
+              sub="Cloud accounts"
               icon="👥"
               accent="blue"
+            />
+            <StatCard
+              label="Guest Players"
+              value={metrics.guestPlayersCount.toLocaleString()}
+              sub={`${metrics.guestGamesPlayed.toLocaleString()} guest runs played`}
+              icon="👤"
+              accent="purple"
             />
             <StatCard
               label="New Users"
