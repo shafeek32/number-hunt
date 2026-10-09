@@ -1,9 +1,8 @@
 /**
- * guestTracker.ts — Guest Players Analytics & Persistence
+ * guestTracker.ts — Real Guest Players Analytics & Tracking
  *
- * Tracks and persists unique guest players who play Number Hunt without logging in.
- * Stores local session progress and maintains a persistent registry of all guest
- * players, their games played, levels reached, stars earned, and activity dates.
+ * Tracks only genuine guest players who play Number Hunt without logging in.
+ * No mock/dummy players. If no guest has played, count is 0.
  */
 
 import {
@@ -19,9 +18,38 @@ import type { AdminUserItem, AdminUserDetail, AdminGameItem } from '../types/adm
 const GUEST_ID_KEY = 'nh_guest_device_id';
 const GUEST_REGISTRY_KEY = 'nh_guest_registry_v1';
 
+// Known mock IDs from earlier to explicitly purge from localStorage if present
+const PURGE_MOCK_IDS = new Set([
+  'guest_4f89',
+  'guest_7b21',
+  'guest_a390',
+  'guest_e814',
+  'guest_10c2',
+  'guest_d57e',
+]);
+
+function isMockSession(g: StoredGuestSession): boolean {
+  if (PURGE_MOCK_IDS.has(g.id)) return true;
+  if (g.displayName && (g.displayName.includes('4f89') || g.displayName.includes('d57e') || g.displayName.includes('a390'))) return true;
+  return false;
+}
+
+function hasSupabaseAuthSession(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val && val.includes('access_token')) return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
 export interface StoredGuestSession {
-  id: string; // e.g. "guest_82f1"
-  displayName: string; // e.g. "Guest #82f1"
+  id: string;
+  displayName: string;
   avatar: string;
   firstSeenAt: string;
   lastPlayedAt: string;
@@ -45,8 +73,8 @@ export interface StoredGuestSession {
 export function getOrCreateGuestId(): string {
   try {
     let id = localStorage.getItem(GUEST_ID_KEY);
-    if (!id) {
-      const randHex = Math.random().toString(16).substring(2, 10);
+    if (!id || PURGE_MOCK_IDS.has(id)) {
+      const randHex = Math.random().toString(16).substring(2, 6);
       id = `guest_${randHex}`;
       localStorage.setItem(GUEST_ID_KEY, id);
     }
@@ -57,191 +85,9 @@ export function getOrCreateGuestId(): string {
 }
 
 /**
- * Generate seed historical guest players so admin dashboard immediately
- * reflects all guest players who have played across sessions.
- */
-function getInitialGuestRegistry(): StoredGuestSession[] {
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-
-  return [
-    {
-      id: 'guest_4f89',
-      displayName: 'Guest #4f89',
-      avatar: '👤',
-      firstSeenAt: new Date(now - 6 * dayMs).toISOString(),
-      lastPlayedAt: new Date(now - 1 * dayMs).toISOString(),
-      totalGames: 24,
-      completedGames: 22,
-      bestScore: 168420,
-      highestLevel: 10,
-      totalStars: 28,
-      perfectGames: 14,
-      currentStreak: 3,
-      longestStreak: 4,
-      achievementsCount: 5,
-      isMigrated: false,
-      recentGames: [
-        {
-          id: 'gg-101',
-          userId: 'guest_4f89',
-          username: 'guest_4f89',
-          displayName: 'Guest #4f89',
-          avatar: '👤',
-          levelId: 10,
-          numberCount: 14,
-          isDaily: false,
-          score: 168420,
-          timeMs: 12450,
-          mistakes: 0,
-          accuracy: 100,
-          stars: 3,
-          completedAt: new Date(now - 1 * dayMs).toISOString(),
-          createdAt: new Date(now - 1 * dayMs).toISOString(),
-          isFlagged: false,
-          flagReason: null,
-          isVerified: true,
-        },
-        {
-          id: 'gg-102',
-          userId: 'guest_4f89',
-          username: 'guest_4f89',
-          displayName: 'Guest #4f89',
-          avatar: '👤',
-          levelId: 9,
-          numberCount: 13,
-          isDaily: false,
-          score: 154200,
-          timeMs: 14100,
-          mistakes: 1,
-          accuracy: 92.8,
-          stars: 2,
-          completedAt: new Date(now - 2 * dayMs).toISOString(),
-          createdAt: new Date(now - 2 * dayMs).toISOString(),
-          isFlagged: false,
-          flagReason: null,
-          isVerified: true,
-        },
-      ],
-    },
-    {
-      id: 'guest_7b21',
-      displayName: 'Guest #7b21',
-      avatar: '🎮',
-      firstSeenAt: new Date(now - 4 * dayMs).toISOString(),
-      lastPlayedAt: new Date(now - 4 * 3600 * 1000).toISOString(),
-      totalGames: 18,
-      completedGames: 18,
-      bestScore: 142100,
-      highestLevel: 8,
-      totalStars: 22,
-      perfectGames: 9,
-      currentStreak: 2,
-      longestStreak: 2,
-      achievementsCount: 3,
-      isMigrated: false,
-      recentGames: [
-        {
-          id: 'gg-201',
-          userId: 'guest_7b21',
-          username: 'guest_7b21',
-          displayName: 'Guest #7b21',
-          avatar: '🎮',
-          levelId: 8,
-          numberCount: 12,
-          isDaily: false,
-          score: 142100,
-          timeMs: 9800,
-          mistakes: 0,
-          accuracy: 100,
-          stars: 3,
-          completedAt: new Date(now - 4 * 3600 * 1000).toISOString(),
-          createdAt: new Date(now - 4 * 3600 * 1000).toISOString(),
-          isFlagged: false,
-          flagReason: null,
-          isVerified: true,
-        },
-      ],
-    },
-    {
-      id: 'guest_a390',
-      displayName: 'Guest #a390',
-      avatar: '👾',
-      firstSeenAt: new Date(now - 12 * dayMs).toISOString(),
-      lastPlayedAt: new Date(now - 3 * dayMs).toISOString(),
-      totalGames: 12,
-      completedGames: 11,
-      bestScore: 118400,
-      highestLevel: 6,
-      totalStars: 16,
-      perfectGames: 6,
-      currentStreak: 0,
-      longestStreak: 2,
-      achievementsCount: 2,
-      isMigrated: true,
-      migratedToUserId: 'ff2ba77a-a830-4613-a46d-fabdcf796029',
-      recentGames: [],
-    },
-    {
-      id: 'guest_e814',
-      displayName: 'Guest #e814',
-      avatar: '👤',
-      firstSeenAt: new Date(now - 2 * dayMs).toISOString(),
-      lastPlayedAt: new Date(now - 30 * 60 * 1000).toISOString(),
-      totalGames: 8,
-      completedGames: 8,
-      bestScore: 92500,
-      highestLevel: 5,
-      totalStars: 12,
-      perfectGames: 4,
-      currentStreak: 1,
-      longestStreak: 1,
-      achievementsCount: 1,
-      isMigrated: false,
-      recentGames: [],
-    },
-    {
-      id: 'guest_10c2',
-      displayName: 'Guest #10c2',
-      avatar: '🕹️',
-      firstSeenAt: new Date(now - 1 * dayMs).toISOString(),
-      lastPlayedAt: new Date(now - 2 * 3600 * 1000).toISOString(),
-      totalGames: 5,
-      completedGames: 4,
-      bestScore: 78900,
-      highestLevel: 4,
-      totalStars: 8,
-      perfectGames: 2,
-      currentStreak: 1,
-      longestStreak: 1,
-      achievementsCount: 1,
-      isMigrated: false,
-      recentGames: [],
-    },
-    {
-      id: 'guest_d57e',
-      displayName: 'Guest #d57e',
-      avatar: '👤',
-      firstSeenAt: new Date(now - 8 * dayMs).toISOString(),
-      lastPlayedAt: new Date(now - 7 * dayMs).toISOString(),
-      totalGames: 3,
-      completedGames: 3,
-      bestScore: 45000,
-      highestLevel: 3,
-      totalStars: 5,
-      perfectGames: 1,
-      currentStreak: 0,
-      longestStreak: 1,
-      achievementsCount: 0,
-      isMigrated: false,
-      recentGames: [],
-    },
-  ];
-}
-
-/**
- * Load all tracked guest player sessions.
- * Also synchronizes the current local browser guest progress into the registry.
+ * Load genuine guest player sessions.
+ * Automatically purges any old dummy seed records.
+ * Synchronizes real local device guest progress if games have been played while logged out.
  */
 export function getGuestRegistry(): StoredGuestSession[] {
   let registry: StoredGuestSession[] = [];
@@ -249,20 +95,21 @@ export function getGuestRegistry(): StoredGuestSession[] {
   try {
     const raw = localStorage.getItem(GUEST_REGISTRY_KEY);
     if (raw) {
-      registry = JSON.parse(raw);
+      const parsed: StoredGuestSession[] = JSON.parse(raw);
+      // Clean out any legacy mock data
+      registry = parsed.filter((g) => !isMockSession(g));
     }
   } catch {
     registry = [];
   }
 
-  if (registry.length === 0) {
-    registry = getInitialGuestRegistry();
-  }
-
-  // Check if current browser has active local guest play
+  // Check if current browser has real active unauthenticated guest play
   try {
+    const isAuthenticated = hasSupabaseAuthSession();
     const localStats = getStoredPlayerStats();
-    if (localStats.totalGames > 0) {
+
+    // Only register device as guest if user is NOT logged in and has played local games
+    if (!isAuthenticated && localStats.totalGames > 0) {
       const guestId = getOrCreateGuestId();
       const localBests = getLevelBests();
       const unlockedLevels = getUnlockedLevels();
@@ -271,7 +118,6 @@ export function getGuestRegistry(): StoredGuestSession[] {
       const achievements = getUnlockedAchievements();
       const streak = getStreakData();
 
-      // Build local guest recent games from bests
       const localGames: AdminGameItem[] = Object.entries(localBests).map(([lvlStr, b]) => ({
         id: `local-g-${lvlStr}`,
         userId: guestId,
@@ -296,21 +142,21 @@ export function getGuestRegistry(): StoredGuestSession[] {
       const existingIdx = registry.findIndex((g) => g.id === guestId);
       const localGuestSession: StoredGuestSession = {
         id: guestId,
-        displayName: `Guest #${guestId.replace('guest_', '').slice(0, 4)} (This Device)`,
+        displayName: `Guest #${guestId.replace('guest_', '')} (This Device)`,
         avatar: '⚡',
-        firstSeenAt: registry[existingIdx]?.firstSeenAt || new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
+        firstSeenAt: registry[existingIdx]?.firstSeenAt || new Date().toISOString(),
         lastPlayedAt: new Date().toISOString(),
-        totalGames: Math.max(localStats.totalGames, registry[existingIdx]?.totalGames || 0),
-        completedGames: Math.max(localStats.totalGames, registry[existingIdx]?.completedGames || 0),
-        bestScore: Math.max(localStats.bestScore, registry[existingIdx]?.bestScore || 0),
-        highestLevel: Math.max(highestLevel, registry[existingIdx]?.highestLevel || 1),
-        totalStars: Math.max(totalStars, registry[existingIdx]?.totalStars || 0),
-        perfectGames: Math.max(localStats.perfectGames, registry[existingIdx]?.perfectGames || 0),
+        totalGames: localStats.totalGames,
+        completedGames: localStats.totalGames,
+        bestScore: localStats.bestScore,
+        highestLevel: highestLevel,
+        totalStars: totalStars,
+        perfectGames: localStats.perfectGames,
         currentStreak: streak.currentStreak,
         longestStreak: streak.longestStreak,
         achievementsCount: achievements.length,
         isMigrated: false,
-        recentGames: localGames.length > 0 ? localGames : registry[existingIdx]?.recentGames || [],
+        recentGames: localGames,
       };
 
       if (existingIdx >= 0) {
@@ -319,6 +165,9 @@ export function getGuestRegistry(): StoredGuestSession[] {
         registry.unshift(localGuestSession);
       }
 
+      saveGuestRegistry(registry);
+    } else {
+      // If mock entries were purged, resave clean registry
       saveGuestRegistry(registry);
     }
   } catch (e) {
@@ -336,7 +185,7 @@ function saveGuestRegistry(sessions: StoredGuestSession[]): void {
 
 export const guestTracker = {
   /**
-   * Return the total count of guest players who have played Number Hunt.
+   * Return the actual count of guest players who have played Number Hunt.
    */
   getGuestPlayersCount(): number {
     const registry = getGuestRegistry();
@@ -344,7 +193,7 @@ export const guestTracker = {
   },
 
   /**
-   * Return the total games played by all guest players.
+   * Return the actual total games played by guest players.
    */
   getGuestGamesCount(): number {
     const registry = getGuestRegistry();
@@ -364,7 +213,7 @@ export const guestTracker = {
   },
 
   /**
-   * Convert guest sessions to AdminUserItem list for the /admin/users table.
+   * Convert real guest sessions to AdminUserItem list for the /admin/users table.
    */
   getGuestUsersList(): AdminUserItem[] {
     const registry = getGuestRegistry();
@@ -374,7 +223,7 @@ export const guestTracker = {
       avatar: g.avatar,
       username: g.id,
       displayName: g.displayName,
-      email: null, // Guests have no email address
+      email: null,
       isGuest: true,
       totalGames: g.totalGames,
       completedGames: g.completedGames,
@@ -391,28 +240,32 @@ export const guestTracker = {
   },
 
   /**
-   * Return full user dossier for a guest player to view in /admin/users/:id.
+   * Return full user dossier for a real guest player to view in /admin/users/:id.
    */
   getGuestUserDetail(guestId: string): AdminUserDetail | null {
     const registry = getGuestRegistry();
     const guest = registry.find((g) => g.id === guestId);
     if (!guest) return null;
 
-    const totalPlayTimeMs = guest.totalGames * 18500; // estimated avg ~18.5s/run
-    const avgScore = guest.totalGames > 0 ? Math.round(guest.bestScore * 0.78) : 0;
-    const avgTimeMs = 14200;
+    const totalPlayTimeMs = guest.recentGames.reduce((acc, g) => acc + (g.timeMs || 0), 0) || (guest.totalGames * 10000);
+    const avgScore = guest.recentGames.length > 0
+      ? Math.round(guest.recentGames.reduce((acc, g) => acc + g.score, 0) / guest.recentGames.length)
+      : guest.bestScore;
+    const avgTimeMs = guest.recentGames.length > 0
+      ? Math.round(totalPlayTimeMs / guest.recentGames.length)
+      : 8000;
 
-    // Build 16 level performances
     const levelPerformance = Array.from({ length: 16 }, (_, i) => {
       const lvlId = i + 1;
+      const gameForLevel = guest.recentGames.find((g) => g.levelId === lvlId);
       const reached = lvlId <= guest.highestLevel;
       return {
         levelId: lvlId,
-        bestScore: reached ? Math.max(10000, guest.bestScore - (16 - lvlId) * 8000) : 0,
-        bestTimeMs: reached ? 3000 + lvlId * 1400 : null,
-        bestStars: reached ? (lvlId <= Math.floor(guest.highestLevel / 2) ? 3 : 2) : 0,
-        gamesPlayed: reached ? Math.max(1, Math.floor(guest.totalGames / guest.highestLevel)) : 0,
-        completed: reached ? Math.max(1, Math.floor(guest.completedGames / guest.highestLevel)) : 0,
+        bestScore: gameForLevel?.score || (reached ? guest.bestScore : 0),
+        bestTimeMs: gameForLevel?.timeMs || (reached ? 5000 : null),
+        bestStars: gameForLevel?.stars || (reached ? 2 : 0),
+        gamesPlayed: reached ? 1 : 0,
+        completed: reached ? 1 : 0,
       };
     });
 
@@ -424,14 +277,14 @@ export const guestTracker = {
         avatar: guest.avatar,
         created_at: guest.firstSeenAt,
         updated_at: guest.lastPlayedAt,
-        email: 'Guest (No email — Local Session)',
+        email: 'Guest Session (Local Device)',
       },
       stats: {
         user_id: guest.id,
         total_games: guest.totalGames,
         perfect_games: guest.perfectGames,
         best_score: guest.bestScore,
-        best_time_ms: 4200,
+        best_time_ms: guest.recentGames[0]?.timeMs || null,
         highest_level: guest.highestLevel,
         total_stars: guest.totalStars,
         current_streak: guest.currentStreak,
@@ -443,7 +296,7 @@ export const guestTracker = {
       totalPlayTimeMs,
       averageScore: avgScore,
       averageTimeMs: avgTimeMs,
-      completionRate: guest.totalGames > 0 ? Math.round((guest.completedGames / guest.totalGames) * 100) : 100,
+      completionRate: 100,
       levelPerformance,
       recentGames: guest.recentGames,
     };
@@ -470,7 +323,7 @@ export const guestTracker = {
         id: `gg-${Date.now()}`,
         userId: guestId,
         username: guestId,
-        displayName: `Guest #${guestId.replace('guest_', '').slice(0, 4)}`,
+        displayName: `Guest #${guestId.replace('guest_', '')}`,
         avatar: '👤',
         levelId: params.levelId,
         numberCount: params.numberCount,
@@ -500,7 +353,7 @@ export const guestTracker = {
       } else {
         const newSession: StoredGuestSession = {
           id: guestId,
-          displayName: `Guest #${guestId.replace('guest_', '').slice(0, 4)}`,
+          displayName: `Guest #${guestId.replace('guest_', '')}`,
           avatar: '👤',
           firstSeenAt: new Date().toISOString(),
           lastPlayedAt: new Date().toISOString(),

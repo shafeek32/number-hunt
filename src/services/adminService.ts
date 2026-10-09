@@ -375,7 +375,7 @@ export const adminService = {
    */
   async getUsersList(options: {
     search?: string;
-    filter?: 'all' | 'registered' | 'guests' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
+    filter?: 'all' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
     page?: number;
     pageSize?: number;
     sortField?: string;
@@ -463,10 +463,6 @@ export const adminService = {
         };
       });
 
-      // Merge guest players who played Number Hunt
-      const guestUsers = guestTracker.getGuestUsersList();
-      allUsers = [...allUsers, ...guestUsers];
-
       // Apply Search if query provided
       if (search.trim()) {
         const s = search.toLowerCase();
@@ -476,11 +472,7 @@ export const adminService = {
       }
 
       // Apply Filter
-      if (filter === 'registered') {
-        allUsers = allUsers.filter((u) => !u.isGuest);
-      } else if (filter === 'guests') {
-        allUsers = allUsers.filter((u) => u.isGuest);
-      } else if (filter === 'active_today') {
+      if (filter === 'active_today') {
         allUsers = allUsers.filter((u) => u.lastPlayedAt && new Date(u.lastPlayedAt).getTime() >= todayStart);
       } else if (filter === 'new_today') {
         allUsers = allUsers.filter((u) => new Date(u.joinedAt).getTime() >= todayStart);

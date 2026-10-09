@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { adminService, type AdminUserItem } from '../../services/adminService';
 import { formatScore } from '../../utils/scoring';
 
-type FilterType = 'all' | 'registered' | 'guests' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
+type FilterType = 'all' | 'active_today' | 'new_today' | 'last_7d' | 'inactive';
 
 function formatDate(iso: string | null): string {
   if (!iso) return 'Never';
@@ -123,9 +123,7 @@ export function AdminUsers() {
         <div className="flex flex-wrap items-center gap-1.5">
           {(
             [
-              { key: 'all',          label: 'All Players' },
-              { key: 'registered',   label: '👥 Registered' },
-              { key: 'guests',       label: '👤 Guest Players' },
+              { key: 'all',          label: 'All' },
               { key: 'active_today', label: 'Active Today' },
               { key: 'new_today',    label: 'New Today' },
               { key: 'last_7d',      label: 'Last 7 Days' },
