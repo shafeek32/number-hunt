@@ -2,7 +2,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { GameRow, PlayerStatsRow } from '../types/database';
 
 export interface SaveGameParams {
-  userId: string;
+  userId?: string | null;
+  guestId?: string | null;
   levelId: number;
   numberCount: number;
   timeMs: number;
@@ -10,24 +11,106 @@ export interface SaveGameParams {
   accuracy: number;
   score: number;
   stars: number;
+  clientToken?: string | null;
+  gameMode?: 'standard' | 'daily' | 'practice';
   completedAt?: string;
 }
 
 export const gameService = {
   /**
    * Save completed game to Supabase cloud.
-   * Also updates aggregated player_stats.
-   * Note: Server-side validation is reserved for Phase 4.
+   * Supports both registered users and unauthenticated guests.
+   * Also updates aggregated player_stats for registered users.
    */
   async saveGame(params: SaveGameParams): Promise<GameRow | null> {
     if (!isSupabaseConfigured) return null;
 
     const completedAt = params.completedAt || new Date().toISOString();
+    const gameMode = params.gameMode || 'standard';
+
+    // ── GUEST GAME PERSISTENCE ──────────────────────────────────────────
+    if (!params.userId && params.guestId) {
+      try {
+        // 1. Try secure database RPC first (validates score and checks replay token)
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('submit_guest_game', {
+          p_guest_id: params.guestId,
+          p_level_id: params.levelId,
+          p_number_count: params.numberCount,
+          p_time_ms: params.timeMs,
+          p_mistakes: params.mistakes,
+          p_accuracy: params.accuracy,
+          p_score: params.score,
+          p_stars: params.stars,
+          p_client_token: params.clientToken ?? null,
+          p_game_mode: gameMode,
+        });
+
+        if (!rpcErr && rpcRes && rpcRes.success) {
+          return {
+            id: rpcRes.game_id || 'guest-' + Date.now(),
+            user_id: null,
+            guest_id: params.guestId,
+            level_id: params.levelId,
+            number_count: params.numberCount,
+            time_ms: params.timeMs,
+            mistakes: params.mistakes,
+            accuracy: params.accuracy,
+            score: rpcRes.verified_score ?? params.score,
+            stars: params.stars,
+            game_mode: gameMode,
+            status: 'completed',
+            is_flagged: rpcRes.is_flagged ?? false,
+            flag_reason: null,
+            is_verified: false,
+            client_token: params.clientToken ?? null,
+            completed_at: completedAt,
+            created_at: completedAt,
+          };
+        }
+      } catch (rpcEx) {
+        console.warn('[gameService] submit_guest_game RPC unavailable, falling back to direct insert:', rpcEx);
+      }
+
+      // 2. Direct insert fallback (per RLS policy)
+      const { data: guestGame, error: guestInsertError } = await supabase
+        .from('games')
+        .insert({
+          user_id: null,
+          guest_id: params.guestId,
+          level_id: params.levelId,
+          number_count: params.numberCount,
+          time_ms: params.timeMs,
+          mistakes: params.mistakes,
+          accuracy: params.accuracy,
+          score: params.score,
+          stars: params.stars,
+          game_mode: gameMode,
+          status: 'completed',
+          client_token: params.clientToken ?? null,
+          completed_at: completedAt,
+        })
+        .select('*')
+        .single();
+
+      if (guestInsertError) {
+        console.error('[gameService] Failed to save guest game to Supabase:', guestInsertError.message);
+        return null;
+      }
+
+      return guestGame;
+    }
+
+    // ── REGISTERED USER GAME PERSISTENCE ────────────────────────────────
+    if (!params.userId) {
+      console.warn('[gameService] Cannot save game: neither userId nor guestId provided');
+      return null;
+    }
 
     const { data: savedGame, error } = await supabase
       .from('games')
       .insert({
         user_id: params.userId,
+        guest_id: null,
         level_id: params.levelId,
         number_count: params.numberCount,
         time_ms: params.timeMs,
@@ -35,17 +118,20 @@ export const gameService = {
         accuracy: params.accuracy,
         score: params.score,
         stars: params.stars,
+        game_mode: gameMode,
+        status: 'completed',
+        client_token: params.clientToken ?? null,
         completed_at: completedAt,
       })
       .select('*')
       .single();
 
     if (error) {
-      console.warn('Failed to upload game to Supabase:', error.message);
+      console.error('[gameService] Failed to upload registered user game to Supabase:', error.message);
       return null;
     }
 
-    // Update player_stats in cloud
+    // Update player_stats in cloud for registered user
     try {
       const { data: currentStats } = await supabase
         .from('player_stats')
@@ -85,7 +171,7 @@ export const gameService = {
         updated_at: new Date().toISOString(),
       });
     } catch (statsErr) {
-      console.warn('Failed to update cloud player stats:', statsErr);
+      console.warn('[gameService] Failed to update cloud player stats:', statsErr);
     }
 
     return savedGame;

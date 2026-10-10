@@ -53,13 +53,19 @@ export interface GamesTimePoint {
 export interface DashboardMetrics {
   totalUsers: number; // total registered users
   registeredUsersCount: number;
-  guestPlayersCount: number; // count of guest players who played
+  guestPlayersCount: number; // count of unique guest players from Supabase
+  totalPlayers: number; // registered + unique guests
   guestGamesPlayed: number; // total games played by guests
+  totalGamesCompleted: number; // all-time completed games
   activeGuestsToday: number; // guest players active today
   newUsersToday: number;
   activePlayersToday: number;
   gamesStartedToday: number;
   gamesCompletedToday: number;
+  gamesCompletedThisWeek: number;
+  totalValidScores: number; // unflagged scores
+  registeredGamesCount: number; // games played by registered users in period
+  guestGamesCount: number; // games played by guests in period
   completionRate: number; // percentage
   averageScore: number;
   averageTimeMs: number;
@@ -69,6 +75,7 @@ export interface DashboardMetrics {
   gamesSeries: GamesTimePoint[];
   topPlayers: AdminTopPlayer[];
   levelActivity: AdminLevelActivity[];
+  recentGames?: AdminGameItem[];
 }
 
 export interface AdminUserItem {
@@ -119,7 +126,11 @@ export interface AdminUserDetail {
 
 export interface AdminGameItem {
   id: string;
-  userId: string;
+  userId: string | null;
+  guestId?: string | null;
+  isGuest?: boolean;
+  gameMode?: string;
+  status?: string;
   username: string;
   displayName: string;
   avatar: string;

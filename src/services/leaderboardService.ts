@@ -59,6 +59,7 @@ export const leaderboardService = {
         .select(`
           id,
           user_id,
+          guest_id,
           level_id,
           score,
           time_ms,
@@ -95,20 +96,23 @@ export const leaderboardService = {
         return { items: [], userRankItem: null, error: new Error(error.message) };
       }
 
-      // Format items with deduplication by user if multiple games exist (highest score per user)
-      const seenUsers = new Set<string>();
+      // Format items with deduplication by user/guest if multiple games exist (highest score per player)
+      const seenPlayers = new Set<string>();
       const rankedItems: LeaderboardItem[] = [];
 
-      data?.forEach((row) => {
-        if (!seenUsers.has(row.user_id)) {
-          seenUsers.add(row.user_id);
+      data?.forEach((row: any) => {
+        const playerKey = row.user_id ? `u_${row.user_id}` : (row.guest_id ? `g_${row.guest_id}` : `anon_${row.id}`);
+        if (!seenPlayers.has(playerKey)) {
+          seenPlayers.add(playerKey);
           const prof = row.profiles as { username?: string; display_name?: string; avatar?: string } | null;
+          const isGuest = !row.user_id;
+          const guestTag = row.guest_id ? row.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
           rankedItems.push({
             rank: rankedItems.length + 1,
-            userId: row.user_id,
-            username: prof?.username || 'player',
-            displayName: prof?.display_name || 'Hunter',
-            avatar: prof?.avatar || '⚡',
+            userId: row.user_id ?? (row.guest_id || 'guest'),
+            username: isGuest ? `guest_${guestTag}` : (prof?.username || 'player'),
+            displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
+            avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
             score: row.score,
             timeMs: row.time_ms,
             mistakes: row.mistakes,

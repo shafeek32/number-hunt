@@ -54,11 +54,12 @@ export interface BannedUser {
 
 // ─── DATE HELPERS ─────────────────────────────────────────────────────────────
 
-export function getDateBounds(filter: DateRangeFilter): { start: Date; end: Date } {
+export function getDateBounds(filter: DateRangeFilter = { key: '7d' }): { start: Date; end: Date } {
+  const f = filter || { key: '7d' };
   const now = new Date();
   const end = new Date(now);
 
-  switch (filter.key) {
+  switch (f.key) {
     case 'today': {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       return { start, end };
@@ -138,25 +139,30 @@ export const adminService = {
   /**
    * Fetch complete Dashboard KPIs, charts, and top rankings for a date range.
    */
-  async getDashboardMetrics(filter: DateRangeFilter): Promise<DashboardMetrics> {
+  async getDashboardMetrics(filter: DateRangeFilter = { key: '7d' }): Promise<DashboardMetrics> {
     const { start, end } = getDateBounds(filter);
     const startIso = start.toISOString();
     const endIso = end.toISOString();
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const todayIso = todayStart.toISOString();
+    const weekAgoIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    if (!isSupabaseConfigured) {
+      return getMockDashboardMetrics(filter);
+    }
 
     try {
-      if (!isSupabaseConfigured) {
-        return getMockDashboardMetrics(filter);
-      }
-
       // Parallel queries to Supabase
       const [
         totalUsersRes,
         newUsersRes,
         gamesInPeriodRes,
+        allTimeGamesRes,
+        gamesTodayRes,
+        gamesWeekRes,
+        guestGamesRes,
         tokensInPeriodRes,
         profilesRes,
       ] = await Promise.all([
@@ -165,12 +171,17 @@ export const adminService = {
         supabase
           .from('games')
           .select(`
-            id, user_id, level_id, score, time_ms, mistakes, accuracy, stars, completed_at,
+            id, user_id, guest_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
+            completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
             profiles!user_id (username, display_name, avatar)
           `)
           .gte('completed_at', startIso)
           .lte('completed_at', endIso)
           .order('completed_at', { ascending: false }),
+        supabase.from('games').select('id', { count: 'exact', head: true }),
+        supabase.from('games').select('id', { count: 'exact', head: true }).gte('completed_at', todayIso),
+        supabase.from('games').select('id', { count: 'exact', head: true }).gte('completed_at', weekAgoIso),
+        supabase.from('games').select('guest_id').is('user_id', null).not('guest_id', 'is', null),
         supabase
           .from('game_tokens')
           .select('token', { count: 'exact', head: true })
@@ -179,32 +190,73 @@ export const adminService = {
         supabase.from('profiles').select('id, username, display_name, avatar'),
       ]);
 
+      // If an explicit database error occurred on games or profiles, surface it
+      if (gamesInPeriodRes.error) {
+        throw new Error(`Failed to query games from Supabase: ${gamesInPeriodRes.error.message}`);
+      }
+      if (totalUsersRes.error) {
+        throw new Error(`Failed to query profiles from Supabase: ${totalUsersRes.error.message}`);
+      }
+
       const totalUsers = totalUsersRes.count ?? profilesRes.data?.length ?? 0;
       const newUsersToday = newUsersRes.count ?? 0;
 
-      const games = gamesInPeriodRes.data ?? [];
-      const gamesCompleted = games.length;
-      const rawStarted = tokensInPeriodRes.count ?? 0;
-      const gamesStarted = Math.max(rawStarted, gamesCompleted);
-      const completionRate = gamesStarted > 0 ? Math.min(100, (gamesCompleted / gamesStarted) * 100) : 100;
+      // Unique guest players recorded in Supabase games table
+      const dbGuestIds = (guestGamesRes.data ?? []).map((r) => r.guest_id).filter(Boolean) as string[];
+      const dbUniqueGuests = new Set(dbGuestIds);
+      // Merge with local device guest player if offline runs exist
+      const localGuestCount = guestTracker.getGuestPlayersCount();
+      const guestPlayersCount = Math.max(dbUniqueGuests.size, localGuestCount);
+      const totalPlayers = totalUsers + guestPlayersCount;
 
-      // Active unique players in period
-      const activeUserIds = new Set(games.map((g) => g.user_id));
-      const activePlayers = activeUserIds.size;
+      const games = gamesInPeriodRes.data ?? [];
+      const gamesCompletedInPeriod = games.length;
+
+      // All-time completed games (registered + guests)
+      const totalGamesCompleted = allTimeGamesRes.count ?? gamesCompletedInPeriod;
+      const gamesCompletedToday = gamesTodayRes.count ?? 0;
+      const gamesCompletedThisWeek = gamesWeekRes.count ?? 0;
+
+      // Total guest games all-time
+      const guestGamesPlayed = Math.max(dbGuestIds.length, guestTracker.getGuestGamesCount());
+
+      // Registered vs Guest breakdown in current period
+      const registeredGamesCount = games.filter((g) => g.user_id !== null).length;
+      const guestGamesCount = games.filter((g) => g.user_id === null).length;
+
+      // Active unique players in period: registered user_id + guest guest_id
+      const activePlayerKeys = new Set(
+        games.map((g) => (g.user_id ? `u_${g.user_id}` : g.guest_id ? `g_${g.guest_id}` : `anon_${g.id}`))
+      );
+      const activePlayersPeriod = activePlayerKeys.size;
+
+      // Active guests today from Supabase
+      const guestsTodayKeys = new Set(
+        games
+          .filter((g) => g.user_id === null && new Date(g.completed_at).getTime() >= todayStart.getTime())
+          .map((g) => g.guest_id || g.id)
+      );
+      const activeGuestsToday = Math.max(guestsTodayKeys.size, guestTracker.getActiveGuestsToday());
+
+      // Valid (unflagged) scores
+      const totalValidScores = games.filter((g) => !g.is_flagged).length;
+
+      const rawStarted = tokensInPeriodRes.count ?? 0;
+      const gamesStarted = Math.max(rawStarted, gamesCompletedInPeriod);
+      const completionRate = gamesStarted > 0 ? Math.min(100, (gamesCompletedInPeriod / gamesStarted) * 100) : 100;
 
       // Aggregates
       const totalScore = games.reduce((acc, g) => acc + (g.score || 0), 0);
       const totalTimeMs = games.reduce((acc, g) => acc + (g.time_ms || 0), 0);
-      const averageScore = gamesCompleted > 0 ? Math.round(totalScore / gamesCompleted) : 0;
-      const averageTimeMs = gamesCompleted > 0 ? Math.round(totalTimeMs / gamesCompleted) : 0;
+      const averageScore = gamesCompletedInPeriod > 0 ? Math.round(totalScore / gamesCompletedInPeriod) : 0;
+      const averageTimeMs = gamesCompletedInPeriod > 0 ? Math.round(totalTimeMs / gamesCompletedInPeriod) : 0;
       const perfectGames = games.filter((g) => g.mistakes === 0).length;
 
-      // 1. Activity Chart series (hourly for today, daily for 7d/30d)
+      // 1. Activity Chart series (hourly for today/yesterday, daily for 7d/30d)
       const activitySeries: ActivityTimePoint[] = [];
       const gamesSeries: GamesTimePoint[] = [];
 
       if (filter.key === 'today' || filter.key === 'yesterday') {
-        // 24-hour breakdown
         const hourlyBuckets = Array.from({ length: 24 }, (_, h) => ({
           hour: h,
           label: `${String(h).padStart(2, '0')}:00`,
@@ -216,8 +268,9 @@ export const adminService = {
         games.forEach((g) => {
           const d = new Date(g.completed_at);
           const h = d.getHours();
+          const playerKey = g.user_id ? `u_${g.user_id}` : g.guest_id ? `g_${g.guest_id}` : `g_${g.id}`;
           if (hourlyBuckets[h]) {
-            hourlyBuckets[h].players.add(g.user_id);
+            hourlyBuckets[h].players.add(playerKey);
             hourlyBuckets[h].completed += 1;
             hourlyBuckets[h].started += 1;
           }
@@ -235,7 +288,6 @@ export const adminService = {
           });
         });
       } else {
-        // Daily breakdown
         const days = filter.key === '30d' ? 30 : 7;
         const dailyMap = new Map<string, { players: Set<string>; started: number; completed: number }>();
 
@@ -249,8 +301,9 @@ export const adminService = {
           const d = new Date(g.completed_at);
           const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           const entry = dailyMap.get(key);
+          const playerKey = g.user_id ? `u_${g.user_id}` : g.guest_id ? `g_${g.guest_id}` : `g_${g.id}`;
           if (entry) {
-            entry.players.add(g.user_id);
+            entry.players.add(playerKey);
             entry.completed += 1;
             entry.started += 1;
           }
@@ -276,19 +329,22 @@ export const adminService = {
         return a.mistakes - b.mistakes;
       });
 
-      const topPlayerSet = new Set<string>();
+      const topPlayerKeys = new Set<string>();
       const topPlayers: AdminTopPlayer[] = [];
 
       sortedGames.forEach((g) => {
-        if (!topPlayerSet.has(g.user_id) && topPlayers.length < 10) {
-          topPlayerSet.add(g.user_id);
+        const playerKey = g.user_id ? `u_${g.user_id}` : g.guest_id ? `g_${g.guest_id}` : `g_${g.id}`;
+        if (!topPlayerKeys.has(playerKey) && topPlayers.length < 10) {
+          topPlayerKeys.add(playerKey);
           const prof = g.profiles as { username?: string; display_name?: string; avatar?: string } | null;
+          const isGuest = !g.user_id;
+          const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
           topPlayers.push({
             rank: topPlayers.length + 1,
-            userId: g.user_id,
-            username: prof?.username || 'hunter',
-            displayName: prof?.display_name || 'Hunter',
-            avatar: prof?.avatar || '⚡',
+            userId: g.user_id ?? (g.guest_id || 'guest'),
+            username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
+            displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
+            avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
             levelId: g.level_id,
             score: g.score,
             timeMs: g.time_ms,
@@ -340,20 +396,51 @@ export const adminService = {
         });
       }
 
-      const guestPlayersCount = guestTracker.getGuestPlayersCount();
-      const guestGamesPlayed = guestTracker.getGuestGamesCount();
-      const activeGuestsToday = guestTracker.getActiveGuestsToday();
+      const recentGames: AdminGameItem[] = games.slice(0, 15).map((g) => {
+        const prof = g.profiles as { username?: string; display_name?: string; avatar?: string } | null;
+        const isGuest = !g.user_id;
+        const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
+        return {
+          id: g.id,
+          userId: g.user_id,
+          guestId: g.guest_id,
+          isGuest,
+          username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
+          displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
+          avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
+          levelId: g.level_id,
+          numberCount: g.number_count,
+          isDaily: false,
+          score: g.score,
+          timeMs: g.time_ms,
+          mistakes: g.mistakes,
+          accuracy: Number(g.accuracy || 100),
+          stars: g.stars,
+          completedAt: g.completed_at,
+          createdAt: g.created_at,
+          isFlagged: g.is_flagged ?? false,
+          flagReason: g.flag_reason ?? null,
+          isVerified: g.is_verified ?? false,
+          verifiedAt: g.verified_at,
+        };
+      });
 
       return {
         totalUsers,
         registeredUsersCount: totalUsers,
         guestPlayersCount,
+        totalPlayers,
         guestGamesPlayed,
+        totalGamesCompleted,
         activeGuestsToday,
         newUsersToday,
-        activePlayersToday: activePlayers + activeGuestsToday,
-        gamesStartedToday: gamesStarted + guestGamesPlayed,
-        gamesCompletedToday: gamesCompleted + guestGamesPlayed,
+        activePlayersToday: activePlayersPeriod,
+        gamesStartedToday: gamesStarted,
+        gamesCompletedToday,
+        gamesCompletedThisWeek,
+        totalValidScores,
+        registeredGamesCount,
+        guestGamesCount,
         completionRate: Number(completionRate.toFixed(1)),
         averageScore,
         averageTimeMs,
@@ -363,10 +450,11 @@ export const adminService = {
         gamesSeries,
         topPlayers,
         levelActivity,
+        recentGames,
       };
     } catch (err) {
-      console.warn('[adminService] getDashboardMetrics error, using fallback:', err);
-      return getMockDashboardMetrics(filter);
+      console.error('[adminService] getDashboardMetrics error:', err);
+      throw err;
     }
   },
 
@@ -512,6 +600,99 @@ export const adminService = {
    */
   async getUserDetail(userId: string): Promise<AdminUserDetail | null> {
     if (userId.startsWith('guest_')) {
+      if (isSupabaseConfigured) {
+        try {
+          const { data: guestGames, error } = await supabase
+            .from('games')
+            .select('*')
+            .eq('guest_id', userId)
+            .order('completed_at', { ascending: false });
+
+          if (!error && guestGames && guestGames.length > 0) {
+            const guestTag = userId.replace(/^guest_/, '').slice(0, 4);
+            const totalGames = guestGames.length;
+            const perfectGames = guestGames.filter((g) => g.mistakes === 0).length;
+            const bestScore = Math.max(...guestGames.map((g) => g.score || 0));
+            const bestTimeMs = Math.min(...guestGames.map((g) => g.time_ms));
+            const highestLevel = Math.max(...guestGames.map((g) => g.level_id));
+            const totalPlayTimeMs = guestGames.reduce((acc, g) => acc + (g.time_ms || 0), 0);
+            const avgScore = Math.round(guestGames.reduce((acc, g) => acc + (g.score || 0), 0) / totalGames);
+            const avgTime = Math.round(totalPlayTimeMs / totalGames);
+
+            const levelPerformance = LEVELS.map((l) => {
+              const lvlGames = guestGames.filter((g) => g.level_id === l.id);
+              const lvlCompleted = lvlGames.length;
+              return {
+                levelId: l.id,
+                bestScore: lvlCompleted > 0 ? Math.max(...lvlGames.map((g) => g.score || 0)) : 0,
+                bestTimeMs: lvlCompleted > 0 ? Math.min(...lvlGames.map((g) => g.time_ms)) : null,
+                bestStars: lvlCompleted > 0 ? Math.max(...lvlGames.map((g) => g.stars || 0)) : 0,
+                gamesPlayed: lvlCompleted,
+                completed: lvlCompleted,
+              };
+            });
+
+            const recentGames: AdminGameItem[] = guestGames.map((g) => ({
+              id: g.id,
+              userId: null,
+              guestId: userId,
+              isGuest: true,
+              username: `guest_${guestTag}`,
+              displayName: `Guest (${guestTag})`,
+              avatar: '👤',
+              levelId: g.level_id,
+              numberCount: g.number_count,
+              isDaily: false,
+              score: g.score,
+              timeMs: g.time_ms,
+              mistakes: g.mistakes,
+              accuracy: Number(g.accuracy || 100),
+              stars: g.stars,
+              completedAt: g.completed_at,
+              createdAt: g.created_at,
+              isFlagged: g.is_flagged ?? false,
+              flagReason: g.flag_reason ?? null,
+              isVerified: g.is_verified ?? false,
+              verifiedAt: g.verified_at,
+            }));
+
+            return {
+              profile: {
+                id: userId,
+                username: `guest_${guestTag}`,
+                display_name: `Guest (${guestTag})`,
+                avatar: '👤',
+                created_at: guestGames[guestGames.length - 1].completed_at,
+                updated_at: guestGames[0].completed_at,
+                email: 'anonymous@guest.numberhunt',
+              },
+              stats: {
+                user_id: userId,
+                total_games: totalGames,
+                perfect_games: perfectGames,
+                best_score: bestScore,
+                best_time_ms: bestTimeMs,
+                highest_level: highestLevel,
+                total_stars: guestGames.reduce((acc, g) => acc + (g.stars || 0), 0),
+                current_streak: 1,
+                longest_streak: 1,
+                updated_at: guestGames[0].completed_at,
+              },
+              isAdmin: false,
+              isBanned: false,
+              totalPlayTimeMs,
+              averageScore: avgScore,
+              averageTimeMs: avgTime,
+              completionRate: 100,
+              levelPerformance,
+              recentGames,
+            };
+          }
+        } catch (e) {
+          console.warn('[adminService] Error querying guest detail from Supabase:', e);
+        }
+      }
+
       return guestTracker.getGuestUserDetail(userId) ?? getMockUserDetail(userId);
     }
 
@@ -666,7 +847,7 @@ export const adminService = {
       let query = supabase
         .from('games')
         .select(`
-          id, user_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
+          id, user_id, guest_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
           completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
           profiles!user_id (username, display_name, avatar)
         `, { count: 'exact' });
@@ -692,18 +873,25 @@ export const adminService = {
       query = query.range(from, to);
 
       const { data, count, error } = await query;
-      if (error || !data) {
+      if (error) {
+        throw new Error(`Failed to query games list from Supabase: ${error.message}`);
+      }
+      if (!data) {
         return getMockGamesList(options);
       }
 
       const games: AdminGameItem[] = data.map((g) => {
         const prof = g.profiles as { username?: string; display_name?: string; avatar?: string } | null;
+        const isGuest = !g.user_id;
+        const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
         return {
           id: g.id,
           userId: g.user_id,
-          username: prof?.username || 'hunter',
-          displayName: prof?.display_name || 'Hunter',
-          avatar: prof?.avatar || '⚡',
+          guestId: g.guest_id,
+          isGuest,
+          username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
+          displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
+          avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
           levelId: g.level_id,
           numberCount: g.number_count,
           isDaily: false,
@@ -726,14 +914,17 @@ export const adminService = {
       if (search.trim()) {
         const s = search.toLowerCase();
         filtered = games.filter(
-          (g) => g.username.toLowerCase().includes(s) || g.displayName.toLowerCase().includes(s)
+          (g) =>
+            g.username.toLowerCase().includes(s) ||
+            g.displayName.toLowerCase().includes(s) ||
+            (g.guestId && g.guestId.toLowerCase().includes(s))
         );
       }
 
       return { games: filtered, totalCount: count ?? filtered.length };
     } catch (err) {
-      console.warn('[adminService] getGamesList error, using fallback:', err);
-      return getMockGamesList(options);
+      console.error('[adminService] getGamesList error:', err);
+      throw err;
     }
   },
 
@@ -750,7 +941,7 @@ export const adminService = {
       let query = supabase
         .from('games')
         .select(`
-          id, user_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
+          id, user_id, guest_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
           completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
           profiles!user_id (username, display_name, avatar)
         `)
@@ -764,16 +955,23 @@ export const adminService = {
       }
 
       const { data, error } = await query;
-      if (error || !data) return [];
+      if (error) {
+        throw new Error(`Failed to query admin leaderboard: ${error.message}`);
+      }
+      if (!data) return [];
 
       return data.map((g) => {
         const prof = g.profiles as { username?: string; display_name?: string; avatar?: string } | null;
+        const isGuest = !g.user_id;
+        const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
         return {
           id: g.id,
           userId: g.user_id,
-          username: prof?.username || 'hunter',
-          displayName: prof?.display_name || 'Hunter',
-          avatar: prof?.avatar || '⚡',
+          guestId: g.guest_id,
+          isGuest,
+          username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
+          displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
+          avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
           levelId: g.level_id,
           numberCount: g.number_count,
           isDaily: false,
@@ -790,8 +988,9 @@ export const adminService = {
           verifiedAt: g.verified_at,
         };
       });
-    } catch {
-      return [];
+    } catch (err) {
+      console.error('[adminService] getAdminLeaderboard error:', err);
+      throw err;
     }
   },
 
@@ -1127,12 +1326,18 @@ function getMockDashboardMetrics(filter: DateRangeFilter): DashboardMetrics {
     totalUsers: 142,
     registeredUsersCount: 142,
     guestPlayersCount,
+    totalPlayers: 142 + guestPlayersCount,
     guestGamesPlayed,
+    totalGamesCompleted: 1240 + guestGamesPlayed,
     activeGuestsToday,
     newUsersToday: 12,
     activePlayersToday: 38 + activeGuestsToday,
     gamesStartedToday: 184 + guestGamesPlayed,
     gamesCompletedToday: 172 + guestGamesPlayed,
+    gamesCompletedThisWeek: 480,
+    totalValidScores: 172 + guestGamesPlayed,
+    registeredGamesCount: 172,
+    guestGamesCount: guestGamesPlayed,
     completionRate: 93.5,
     averageScore: 98420,
     averageTimeMs: 7850,

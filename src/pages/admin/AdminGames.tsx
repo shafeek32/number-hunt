@@ -31,6 +31,7 @@ export function AdminGames() {
   const [games, setGames] = useState<AdminGameItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters & Pagination
   const [search, setSearch] = useState('');
@@ -47,6 +48,7 @@ export function AdminGames() {
 
   const loadGames = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await adminService.getGamesList({
         search,
@@ -60,6 +62,9 @@ export function AdminGames() {
       });
       setGames(res.games);
       setTotalCount(res.totalCount);
+    } catch (err) {
+      console.error('Failed to load games:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load games history');
     } finally {
       setLoading(false);
     }
@@ -141,6 +146,21 @@ export function AdminGames() {
         <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 text-xs flex items-center justify-between">
           <span>✓ {actionNotice}</span>
           <button onClick={() => setActionNotice(null)} className="text-emerald-400 hover:text-white">✕</button>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => loadGames()}
+            className="px-2.5 py-1 rounded bg-rose-800 hover:bg-rose-700 text-white font-medium transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -314,7 +334,7 @@ export function AdminGames() {
                       {/* Player */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <Link
-                          to={`/admin/users/${g.userId}`}
+                          to={`/admin/users/${g.userId || g.guestId || 'guest'}`}
                           className="flex items-center gap-2 group hover:text-amber-400"
                         >
                           <span className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-xs">
@@ -325,7 +345,7 @@ export function AdminGames() {
                               <span className="font-semibold text-slate-200 group-hover:text-amber-400">
                                 @{g.username}
                               </span>
-                              {g.userId.startsWith('guest_') && (
+                              {(g.isGuest || !g.userId || g.userId?.startsWith('guest_')) && (
                                 <span className="px-1.5 py-0.2 rounded text-[8px] bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase font-bold">
                                   Guest
                                 </span>
@@ -427,7 +447,7 @@ export function AdminGames() {
                             🗑
                           </button>
                           <Link
-                            to={`/admin/users/${g.userId}`}
+                            to={`/admin/users/${g.userId || g.guestId || 'guest'}`}
                             title="Inspect user dossier"
                             className="p-1.5 rounded text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
                           >

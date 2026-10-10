@@ -24,8 +24,8 @@ function gridFor(count: number): { rows: number; cols: number } {
 }
 
 function difficultyFor(levelId: number): Difficulty {
-  if (levelId <= 4)  return 'easy';
-  if (levelId <= 8)  return 'normal';
+  if (levelId <= 3)  return 'easy';
+  if (levelId <= 7)  return 'normal';
   if (levelId <= 11) return 'hard';
   if (levelId <= 14) return 'very-hard';
   return 'extreme';

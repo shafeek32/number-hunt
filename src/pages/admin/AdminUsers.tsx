@@ -31,6 +31,7 @@ export function AdminUsers() {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [page, setPage] = useState(1);
@@ -40,6 +41,7 @@ export function AdminUsers() {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await adminService.getUsersList({
         search,
@@ -51,6 +53,9 @@ export function AdminUsers() {
       });
       setUsers(res.users);
       setTotalCount(res.totalCount);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load users list');
     } finally {
       setLoading(false);
     }
@@ -153,6 +158,21 @@ export function AdminUsers() {
           Showing <b>{users.length}</b> of <b>{totalCount}</b> players
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => loadUsers()}
+            className="px-2.5 py-1 rounded bg-rose-800 hover:bg-rose-700 text-white font-medium transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* ── USERS TABLE (SECTION 10 COLUMNS) ────────────────────────────── */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">

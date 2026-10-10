@@ -9,7 +9,8 @@ export interface ProfileRow {
 
 export interface GameRow {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  guest_id?: string | null;
   level_id: number;
   number_count: number;
   time_ms: number;
@@ -17,9 +18,17 @@ export interface GameRow {
   accuracy: number;
   score: number;
   stars: number;
+  game_mode?: string;
+  status?: string;
+  is_flagged?: boolean;
+  flag_reason?: string | null;
+  is_verified?: boolean;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  client_token?: string | null;
   completed_at: string;
   created_at: string;
-  profiles?: Pick<ProfileRow, 'username' | 'display_name' | 'avatar'>;
+  profiles?: Pick<ProfileRow, 'username' | 'display_name' | 'avatar'> | null;
 }
 
 export interface PlayerStatsRow {

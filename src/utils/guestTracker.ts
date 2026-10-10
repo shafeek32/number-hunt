@@ -67,20 +67,30 @@ export interface StoredGuestSession {
   recentGames: AdminGameItem[];
 }
 
+let inMemoryFallbackGuestId: string | null = null;
+
 /**
  * Returns a stable unique ID for this browser/device guest session.
+ * Uses high-entropy crypto UUID and persists across page refreshes.
  */
 export function getOrCreateGuestId(): string {
   try {
     let id = localStorage.getItem(GUEST_ID_KEY);
-    if (!id || PURGE_MOCK_IDS.has(id)) {
-      const randHex = Math.random().toString(16).substring(2, 6);
-      id = `guest_${randHex}`;
+    if (!id || PURGE_MOCK_IDS.has(id) || id === 'guest_local' || id.length < 8) {
+      const entropy = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+        : Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
+      id = `guest_${entropy}`;
       localStorage.setItem(GUEST_ID_KEY, id);
     }
     return id;
   } catch {
-    return 'guest_local';
+    // If localStorage is completely restricted in strict incognito, use in-memory cache
+    if (!inMemoryFallbackGuestId) {
+      const entropy = Math.random().toString(36).substring(2, 12);
+      inMemoryFallbackGuestId = `guest_${entropy}`;
+    }
+    return inMemoryFallbackGuestId;
   }
 }
 

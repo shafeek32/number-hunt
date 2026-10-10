@@ -31,12 +31,17 @@ export function AdminDashboard() {
   const [filter, setFilter] = useState<DateRangeFilter>({ key: 'today' });
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadMetrics = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await adminService.getDashboardMetrics(filter);
       setMetrics(data);
+    } catch (err: any) {
+      console.error('[AdminDashboard] loadMetrics error:', err);
+      setError(err?.message || 'Failed to aggregate game telemetry from Supabase.');
     } finally {
       setLoading(false);
     }
@@ -55,19 +60,22 @@ export function AdminDashboard() {
             {getGreeting()}
           </h1>
           <p className="text-xs text-slate-400 mt-1 font-medium">
-            Here's what's happening with Number Hunt.
+            Live telemetry, game analytics, and player activity across registered and guest hunters.
           </p>
 
           {metrics && (
             <div className="flex items-center gap-2 flex-wrap text-xs mt-3">
               <span className="px-2.5 py-1 rounded-lg bg-blue-950/40 border border-blue-800/40 text-blue-300 font-medium flex items-center gap-1.5">
-                <span>👥</span> Registered: <strong className="text-white font-mono">{metrics.totalUsers.toLocaleString()}</strong>
+                <span>👥</span> Registered: <strong className="text-white font-mono">{metrics.registeredUsersCount.toLocaleString()}</strong>
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-purple-950/40 border border-purple-800/40 text-purple-300 font-medium flex items-center gap-1.5">
-                <span>👤</span> Guest Players Played: <strong className="text-white font-mono">{metrics.guestPlayersCount.toLocaleString()}</strong>
+                <span>👤</span> Guest Players: <strong className="text-white font-mono">{metrics.guestPlayersCount.toLocaleString()}</strong>
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 font-medium flex items-center gap-1.5">
-                <span>🎮</span> Total Players: <strong className="text-white font-mono">{(metrics.totalUsers + metrics.guestPlayersCount).toLocaleString()}</strong>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 font-medium flex items-center gap-1.5" title="Total players = Registered accounts + Unique guest devices">
+                <span>🎮</span> Total Players: <strong className="text-white font-mono">{metrics.totalPlayers.toLocaleString()}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 font-medium flex items-center gap-1.5">
+                <span>⚡</span> Games Today: <strong className="text-white font-mono">{metrics.gamesCompletedToday.toLocaleString()}</strong>
               </span>
             </div>
           )}
@@ -88,6 +96,28 @@ export function AdminDashboard() {
         </div>
       </div>
 
+      {/* ── ERROR BANNER ─────────────────────────────────────────────────── */}
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-2.5">
+            <span className="text-lg">⚠️</span>
+            <div>
+              <strong className="font-bold text-rose-200">Database telemetry query failed:</strong> {error}
+              <p className="text-[11px] text-rose-400/80 mt-0.5">
+                Ensure the guest gameplay migration script (<code className="font-mono">supabase/migrations/20261010000000_guest_games_support.sql</code>) has been executed in the Supabase SQL editor.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={loadMetrics}
+            className="px-3 py-1.5 bg-rose-900/60 hover:bg-rose-800 border border-rose-700/60 rounded-lg text-white text-xs font-bold transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            Retry Query
+          </button>
+        </div>
+      )}
+
       {loading && !metrics ? (
         <div className="py-20 flex flex-col items-center justify-center text-slate-500">
           <div className="w-8 h-8 border-2 border-slate-700 border-t-sky-500 rounded-full animate-spin mb-3" />
@@ -95,11 +125,11 @@ export function AdminDashboard() {
         </div>
       ) : metrics ? (
         <>
-          {/* ── TOP KPI STATISTICS (SECTION 5) ───────────────────────────── */}
+          {/* ── TOP KPI STATISTICS ───────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <StatCard
               label="Registered Users"
-              value={metrics.totalUsers.toLocaleString()}
+              value={metrics.registeredUsersCount.toLocaleString()}
               sub="Cloud accounts"
               icon="👥"
               accent="blue"
@@ -107,37 +137,37 @@ export function AdminDashboard() {
             <StatCard
               label="Guest Players"
               value={metrics.guestPlayersCount.toLocaleString()}
-              sub={`${metrics.guestGamesPlayed.toLocaleString()} guest runs played`}
+              sub={`${metrics.guestGamesPlayed.toLocaleString()} guest runs recorded`}
               icon="👤"
               accent="purple"
             />
             <StatCard
-              label="New Users"
-              value={metrics.newUsersToday.toLocaleString()}
-              sub={filter.key === 'today' ? 'Joined today' : 'Joined in range'}
-              icon="🌟"
+              label="Total Players"
+              value={metrics.totalPlayers.toLocaleString()}
+              sub="Registered + Unique guests"
+              icon="🎮"
               accent="cyan"
             />
             <StatCard
-              label="Active Players"
+              label="Active in Period"
               value={metrics.activePlayersToday.toLocaleString()}
               sub="Unique hunters"
               icon="⚡"
               accent="yellow"
             />
             <StatCard
-              label="Games Started"
-              value={metrics.gamesStartedToday.toLocaleString()}
-              sub="Total sessions"
-              icon="🎮"
-              accent="purple"
-            />
-            <StatCard
               label="Games Completed"
               value={metrics.gamesCompletedToday.toLocaleString()}
-              sub="Cleared runs"
+              sub={`${metrics.gamesCompletedThisWeek.toLocaleString()} this week`}
               icon="✅"
               accent="green"
+            />
+            <StatCard
+              label="All-Time Cleared"
+              value={metrics.totalGamesCompleted.toLocaleString()}
+              sub="Total completed runs"
+              icon="🏆"
+              accent="pink"
             />
             <StatCard
               label="Completion Rate"
@@ -147,10 +177,17 @@ export function AdminDashboard() {
               accent={metrics.completionRate >= 80 ? 'green' : 'orange'}
             />
             <StatCard
+              label="Valid Scores"
+              value={metrics.totalValidScores.toLocaleString()}
+              sub="Unflagged runs"
+              icon="🛡️"
+              accent="green"
+            />
+            <StatCard
               label="Average Score"
               value={formatScore(metrics.averageScore)}
               sub="Points per game"
-              icon="🏆"
+              icon="📈"
               accent="pink"
             />
             <StatCard
@@ -170,7 +207,7 @@ export function AdminDashboard() {
             <StatCard
               label="Total Play Time"
               value={formatDuration(metrics.totalPlayTimeMs)}
-              sub="All players combined"
+              sub="All runs combined"
               icon="⏳"
               accent="orange"
             />

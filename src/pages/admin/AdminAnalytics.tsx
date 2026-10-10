@@ -17,9 +17,11 @@ export function AdminAnalytics() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [deepDive, setDeepDive] = useState<DeepDiveData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [m, d] = await Promise.all([
         adminService.getDashboardMetrics(filter),
@@ -27,6 +29,9 @@ export function AdminAnalytics() {
       ]);
       setMetrics(m);
       setDeepDive(d);
+    } catch (err) {
+      console.error('Failed to load analytics:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load analytics metrics');
     } finally {
       setLoading(false);
     }
@@ -58,7 +63,20 @@ export function AdminAnalytics() {
         <DateRangeFilterBar value={filter} onChange={setFilter} />
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => loadData()}
+            className="px-2.5 py-1 rounded bg-rose-800 hover:bg-rose-700 text-white font-medium transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <div className="py-24 text-center text-slate-500 text-sm">
           <span className="inline-block animate-spin mr-2">◷</span> Calculating analytics telemetry...
         </div>

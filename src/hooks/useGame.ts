@@ -20,7 +20,7 @@ import { dailyChallengeService } from '../services/dailyChallengeService';
 import { authService } from '../services/authService';
 import { supabase } from '../lib/supabase';
 import { useTimer } from './useTimer';
-import { guestTracker } from '../utils/guestTracker';
+import { guestTracker, getOrCreateGuestId } from '../utils/guestTracker';
 
 export interface UseGameOptions {
   isDaily?: boolean;
@@ -55,6 +55,8 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
   const wrongTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Anti-replay token issued when game starts (Phase 4)
   const gameTokenRef = useRef<string | null>(null);
+  // Submission mutex to prevent duplicate submissions from rapid clicks/re-renders
+  const isSubmittingRef = useRef<boolean>(false);
 
   // Keep latest level, options, and gameState in refs for stable callback access
   const levelRef = useRef(level);
@@ -95,6 +97,7 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
     setWrongNumber(null);
     setGameResult(null);
     gameTokenRef.current = null;
+    isSubmittingRef.current = false;
     const currentLevel = levelRef.current;
     const currentOptions = optionsRef.current;
     const initial = createInitialGameState(currentLevel);
@@ -123,6 +126,7 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
     }
     resetTimer();
     startTimer();
+    isSubmittingRef.current = false;
     setGameState((prev) => ({
       ...prev,
       phase: 'playing',
@@ -140,6 +144,7 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
     resetTimer();
     setWrongNumber(null);
     setGameResult(null);
+    isSubmittingRef.current = false;
     const currentLevel = levelRef.current;
     const currentOptions = optionsRef.current;
     const initial = createInitialGameState(currentLevel);
@@ -165,6 +170,9 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
         const isFinished = nextFound.length === current.level.numberCount;
 
         if (isFinished) {
+          if (isSubmittingRef.current) return;
+          isSubmittingRef.current = true;
+
           const finalTime = stopTimer();
           const accuracy = calcAccuracy(current.level.numberCount, current.mistakes);
           const score = calculateScore(finalTime, current.mistakes, current.level);
@@ -208,7 +216,10 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
             console.warn('[useGame] Local validation failed:', localCheck.reason);
           }
 
-          // Non-blocking asynchronous cloud upload if authenticated
+          const currentOpts = optionsRef.current;
+          const gameMode = currentOpts?.isDaily ? 'daily' : 'standard';
+
+          // Non-blocking asynchronous cloud upload
           authService.getUser().then(async (currentUser) => {
             if (currentUser && localCheck.valid) {
               const { data: sessionData } = await supabase.auth.getSession();
@@ -239,7 +250,7 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
               }
 
               if (!cloudSaved) {
-                gameService.saveGame({
+                await gameService.saveGame({
                   userId: currentUser.id,
                   levelId: current.level.id,
                   numberCount: current.level.numberCount,
@@ -248,10 +259,11 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
                   accuracy,
                   score,
                   stars,
+                  clientToken: gameTokenRef.current ?? undefined,
+                  gameMode,
                 });
               }
 
-              const currentOpts = optionsRef.current;
               if (currentOpts?.isDaily && currentOpts.challengeId) {
                 dailyChallengeService.submitDailyScore({
                   challengeId: currentOpts.challengeId,
@@ -263,7 +275,29 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
                 });
               }
             } else if (!currentUser) {
-              // Track unauthenticated guest gameplay session
+              // ── PERSIST GUEST GAMEPLAY TO SUPABASE ──────────────────
+              const guestId = getOrCreateGuestId();
+              const clientToken = `nh-guest-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+              // 1. Upload to Supabase cloud database
+              gameService.saveGame({
+                guestId,
+                userId: null,
+                levelId: current.level.id,
+                numberCount: current.level.numberCount,
+                timeMs: finalTime,
+                mistakes: current.mistakes,
+                accuracy,
+                score,
+                stars,
+                clientToken,
+                gameMode,
+                completedAt: new Date().toISOString(),
+              }).catch((err) => {
+                console.error('[useGame] Failed to upload guest game to Supabase:', err);
+              });
+
+              // 2. Track in local guest registry for local persistence / offline fallback
               guestTracker.trackGuestGame({
                 levelId: current.level.id,
                 numberCount: current.level.numberCount,
