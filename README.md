@@ -29,6 +29,12 @@
 ### 🌐 [https://numberhunt.online/](https://numberhunt.online/)
 *Play instantly in your browser — mobile, tablet, or desktop. No sign-up required!*
 
+<br />
+
+<a href="https://numberhunt.online/">
+  <img src="public/hero-animation.svg" alt="Number Hunt Live Gameplay Animation" width="100%" style="border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.4);" />
+</a>
+
 </div>
 
 <br />
