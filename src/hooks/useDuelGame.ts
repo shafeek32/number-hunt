@@ -140,7 +140,7 @@ export function useDuelGame(initialLevelId: number = 8) {
 
     // 2. Wrong number clicked!
     // Increment mistakes for active player, reset current streak.
-    // NOTE: We DO NOT reveal the wrong number to players!
+    // Reveal the clicked number so players can see what number was on that tile!
     const nextPlayerId: 'p1' | 'p2' = activeId === 'p1' ? 'p2' : 'p1';
     const nextPlayer = current.players[nextPlayerId];
     const updatedMistakes = activePlayer.mistakes + 1;
@@ -148,7 +148,7 @@ export function useDuelGame(initialLevelId: number = 8) {
     setDuelState((prev) => ({
       ...prev,
       isWrongEffect: true,
-      wrongNumber: null, // do not show wrong number on tile!
+      wrongNumber: num, // Reveal the number on the card!
       players: {
         ...prev.players,
         [activeId]: {
@@ -159,13 +159,15 @@ export function useDuelGame(initialLevelId: number = 8) {
       },
     }));
 
-    // Flash red WRONG effect at the top for 600ms, then seamlessly switch to next player
+    // Flash red WRONG effect at the top and reveal the card number for 750ms so players see it,
+    // then seamlessly hide cards and switch to next player
     wrongTimerRef.current = setTimeout(() => {
       wrongTimerRef.current = null;
       setDuelState((prev) => {
         if (prev.phase !== 'playing') return prev;
         return {
           ...prev,
+          wrongNumber: null,
           isWrongEffect: false,
           activePlayerId: nextPlayerId,
           targetNumber: 1,
@@ -181,7 +183,7 @@ export function useDuelGame(initialLevelId: number = 8) {
           },
         };
       });
-    }, 600);
+    }, 750);
   }, []);
 
   /** Rematch using the exact same board layout */

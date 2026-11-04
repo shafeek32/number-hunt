@@ -50,7 +50,7 @@ describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
     expect(p1.bestStreak).toBe(2);
   });
 
-  it('wrong click triggers top red effect, does not reveal wrong number, resets streak', () => {
+  it('wrong click triggers top red effect, reveals clicked number on card, and resets streak', () => {
     const duel = createInitialDuelState(8, 'Player 1', 'Player 2');
     duel.phase = 'playing';
 
@@ -66,13 +66,13 @@ describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
     duel.players.p1.mistakes += 1;
     duel.players.p1.currentStreak = 0;
     duel.isWrongEffect = true;
-    duel.wrongNumber = null; // Wrong number is never revealed!
+    duel.wrongNumber = clickedNum; // Number is visible to players on the card!
 
     expect(duel.players.p1.mistakes).toBe(1);
     expect(duel.players.p1.currentStreak).toBe(0);
     expect(duel.players.p1.bestStreak).toBe(2);
     expect(duel.isWrongEffect).toBe(true);
-    expect(duel.wrongNumber).toBeNull();
+    expect(duel.wrongNumber).toBe(9);
   });
 
   it('turn handoff resets target to 1, hides tiles, and activates Player 2 with top indicator', () => {

@@ -37,6 +37,7 @@ export function Multiplayer() {
     activePlayerId,
     players,
     winnerId,
+    wrongNumber,
     isWrongEffect,
     turnNumber,
   } = duelState;
@@ -399,15 +400,19 @@ export function Multiplayer() {
           <GameBoard rows={level.gridSize.rows} cols={level.gridSize.cols}>
             {numbers.map((num) => {
               const isFound = foundNumbers.includes(num);
-              // WRONG NUMBERS ARE NEVER REVEALED ON THE BOARD
-              const cardState: NumberCardState = isFound ? 'found' : 'hidden';
+              const isWrong = wrongNumber === num;
+              const cardState: NumberCardState = isWrong
+                ? 'wrong'
+                : isFound
+                ? 'found'
+                : 'hidden';
 
               return (
                 <NumberCard
                   key={num}
                   number={num}
                   state={cardState}
-                  disabled={!isPlaying || isWrongEffect}
+                  disabled={!isPlaying || wrongNumber !== null}
                   onClick={handleNumberClick}
                 />
               );
