@@ -95,22 +95,24 @@ export function Game() {
       </div>
 
       {/* ── GAME HEADER (STATS) ──────────────── */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+        <div className="min-w-0">
           <div className="label-tag">{isDaily ? 'CHALLENGE' : 'LEVEL'}</div>
-          <div className="num-display text-2xl font-black text-[var(--color-text-primary)]">
+          <div className="num-display text-xl sm:text-2xl font-black text-[var(--color-text-primary)]">
             {isDaily ? 'DAILY' : level.id}
-            {!isDaily && <span className="text-base text-[var(--color-text-muted)] font-bold"> / 16</span>}
+            {!isDaily && <span className="text-sm sm:text-base text-[var(--color-text-muted)] font-bold"> / 16</span>}
           </div>
         </div>
 
-        <Timer elapsedMs={elapsedMs} isRunning={isPlaying} prominent />
+        <div className="shrink-0">
+          <Timer elapsedMs={elapsedMs} isRunning={isPlaying} prominent />
+        </div>
 
-        <div className="text-right">
+        <div className="text-right min-w-0">
           <div className="label-tag">MISTAKES</div>
           <div
             className={[
-              'num-display text-2xl font-black transition-all duration-200 inline-block',
+              'num-display text-xl sm:text-2xl font-black transition-all duration-200 inline-block',
               wrongNumber !== null
                 ? 'text-[var(--color-error)] scale-125 animate-shake'
                 : gameState.mistakes > 0

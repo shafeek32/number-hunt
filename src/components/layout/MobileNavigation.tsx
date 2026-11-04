@@ -17,24 +17,25 @@ export function MobileNavigation() {
   }
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface)] border-t border-[var(--color-border)]"
-      style={{ height: 'var(--mobile-nav-height)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface)]/95 backdrop-blur-md border-t border-[var(--color-border)] shadow-lg"
+      style={{
+        height: 'calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
       aria-label="Mobile navigation"
     >
-      <ul className="flex h-full list-none m-0 p-0">
+      <ul className="flex h-full list-none m-0 p-0 max-w-lg mx-auto">
         {NAV_ITEMS.map(({ to, label, icon, highlight }) => (
-          <li key={to} className="flex-1">
+          <li key={to} className="flex-1 min-w-0">
             <NavLink
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
                 [
-                  'flex flex-col items-center justify-center h-full gap-0.5 w-full',
-                  'text-xs font-semibold transition-colors duration-150',
+                  'flex flex-col items-center justify-center h-full px-1 gap-0.5 w-full',
+                  'text-[10px] sm:text-xs font-bold transition-colors duration-150',
                   isActive
-                    ? highlight
-                      ? 'text-[var(--color-accent)]'
-                      : 'text-[var(--color-accent)]'
+                    ? 'text-[var(--color-accent)]'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]',
                 ].join(' ')
               }
@@ -43,10 +44,10 @@ export function MobileNavigation() {
                 <>
                   <span
                     className={[
-                      'flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-150 text-base',
+                      'flex items-center justify-center w-8 sm:w-10 h-6 sm:h-7 rounded-xl transition-all duration-150 text-sm sm:text-base',
                       isActive
                         ? highlight
-                          ? 'bg-[var(--color-accent)] text-white'
+                          ? 'bg-[var(--color-accent)] text-white shadow-xs'
                           : 'bg-[var(--color-accent-light)]'
                         : '',
                     ]
@@ -55,7 +56,7 @@ export function MobileNavigation() {
                   >
                     {icon}
                   </span>
-                  <span>{label}</span>
+                  <span className="truncate max-w-full leading-tight">{label}</span>
                 </>
               )}
             </NavLink>

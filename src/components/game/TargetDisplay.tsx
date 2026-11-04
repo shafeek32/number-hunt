@@ -12,7 +12,7 @@ export function TargetDisplay({ target }: TargetDisplayProps) {
       <span className="label-tag">TARGET</span>
       <span
         className="num-display text-[var(--color-accent)]"
-        style={{ fontSize: 'clamp(3rem, 12vw, 5rem)', lineHeight: 1 }}
+        style={{ fontSize: 'clamp(2.5rem, 10vw, 4.5rem)', lineHeight: 1 }}
         aria-label={`Find number ${target}`}
         aria-live="assertive"
       >

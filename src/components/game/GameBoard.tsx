@@ -18,7 +18,7 @@ export function GameBoard({ rows, cols, children }: GameBoardProps) {
         display: 'grid',
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-        gap: 'clamp(6px, 2vw, 12px)',
+        gap: 'clamp(4px, 1.8vw, 12px)',
       }}
       role="grid"
       aria-label="Number board"

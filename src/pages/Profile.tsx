@@ -31,17 +31,17 @@ interface StatCardProps {
 
 function StatCard({ label, value, sub, accent = false }: StatCardProps) {
   return (
-    <Card padding="md" className="flex flex-col gap-1">
-      <span className="label-tag">{label}</span>
+    <Card padding="md" className="flex flex-col gap-1 min-w-0">
+      <span className="label-tag truncate">{label}</span>
       <span
         className={[
-          'num-display text-2xl font-black leading-none',
+          'num-display text-xl sm:text-2xl font-black leading-none truncate',
           accent ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]',
         ].join(' ')}
       >
         {value}
       </span>
-      {sub && <span className="text-xs text-[var(--color-text-muted)]">{sub}</span>}
+      {sub && <span className="text-[11px] sm:text-xs text-[var(--color-text-muted)] truncate">{sub}</span>}
     </Card>
   );
 }

@@ -267,7 +267,7 @@ export function Multiplayer() {
       )}
 
       {/* ── DUAL SCOREBOARD STRIP ────────────── */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-4">
         {/* Player 1 Card */}
         <div
           className={[
@@ -277,24 +277,24 @@ export function Multiplayer() {
               : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-75',
           ].join(' ')}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-black text-amber-500 tracking-wider truncate max-w-[120px]">
+          <div className="flex items-center justify-between mb-1 gap-2">
+            <span className="text-xs font-black text-amber-500 tracking-wider truncate flex-1 min-w-0">
               {players.p1.name}
             </span>
             {activePlayerId === 'p1' && !isFinished && (
-              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white animate-pulse shrink-0">
                 ACTIVE
               </span>
             )}
           </div>
-          <div className="flex items-baseline justify-between">
-            <div className="text-xs text-[var(--color-text-muted)] font-bold">
-              BEST STREAK:{' '}
+          <div className="flex items-baseline justify-between text-xs">
+            <div className="text-[var(--color-text-muted)] font-bold">
+              BEST:{' '}
               <span className="font-black text-[var(--color-text-primary)]">
                 {players.p1.bestStreak}
               </span>
             </div>
-            <div className="text-xs text-red-500 font-bold">
+            <div className="text-red-500 font-bold">
               {players.p1.mistakes} ❌
             </div>
           </div>
@@ -309,24 +309,24 @@ export function Multiplayer() {
               : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-75',
           ].join(' ')}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-black text-sky-500 tracking-wider truncate max-w-[120px]">
+          <div className="flex items-center justify-between mb-1 gap-2">
+            <span className="text-xs font-black text-sky-500 tracking-wider truncate flex-1 min-w-0">
               {players.p2.name}
             </span>
             {activePlayerId === 'p2' && !isFinished && (
-              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse">
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse shrink-0">
                 ACTIVE
               </span>
             )}
           </div>
-          <div className="flex items-baseline justify-between">
-            <div className="text-xs text-[var(--color-text-muted)] font-bold">
-              BEST STREAK:{' '}
+          <div className="flex items-baseline justify-between text-xs">
+            <div className="text-[var(--color-text-muted)] font-bold">
+              BEST:{' '}
               <span className="font-black text-[var(--color-text-primary)]">
                 {players.p2.bestStreak}
               </span>
             </div>
-            <div className="text-xs text-red-500 font-bold">
+            <div className="text-red-500 font-bold">
               {players.p2.mistakes} ❌
             </div>
           </div>

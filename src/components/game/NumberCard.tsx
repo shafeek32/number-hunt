@@ -33,8 +33,8 @@ export function NumberCard({ number, state = 'hidden', onClick, disabled = false
     <button
       type="button"
       className={[
-        'flex items-center justify-center w-full rounded-xl border-2',
-        'transition-all duration-150 select-none relative',
+        'flex items-center justify-center w-full rounded-lg sm:rounded-xl border-2',
+        'transition-all duration-150 select-none relative touch-manipulation',
         'focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-1',
         stateClasses[state],
         isClickable ? 'cursor-pointer' : 'cursor-default',
@@ -43,7 +43,6 @@ export function NumberCard({ number, state = 'hidden', onClick, disabled = false
         .join(' ')}
       style={{
         aspectRatio: '1 / 1',
-        minHeight: '56px',
       }}
       onClick={handleClick}
       disabled={!isClickable}
@@ -60,33 +59,33 @@ export function NumberCard({ number, state = 'hidden', onClick, disabled = false
     >
       {state === 'hidden' && (
         <span
-          className="w-2.5 h-2.5 rounded-full bg-[var(--color-border)] group-hover:bg-[var(--color-accent)] group-hover:scale-125 transition-all duration-150"
+          className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[var(--color-border)] group-hover:bg-[var(--color-accent)] group-hover:scale-125 transition-all duration-150"
           aria-hidden="true"
         />
       )}
 
       {state === 'found' && (
-        <div className="flex flex-col items-center justify-center leading-none animate-card-flip">
-          <span className="num-display font-black leading-none" style={{ fontSize: 'clamp(1.25rem, 4vw, 2.25rem)' }}>
+        <div className="flex flex-col items-center justify-center leading-none animate-card-flip p-0.5">
+          <span className="num-display font-black leading-none" style={{ fontSize: 'clamp(1rem, 3.8vw, 2.25rem)' }}>
             {number}
           </span>
-          <span className="text-[10px] font-bold text-[var(--color-success)] mt-0.5 leading-none">✓</span>
+          <span className="text-[9px] sm:text-[10px] font-bold text-[var(--color-success)] mt-0.5 leading-none">✓</span>
         </div>
       )}
 
       {state === 'wrong' && (
-        <div className="flex flex-col items-center justify-center leading-none">
-          <span className="num-display font-black leading-none" style={{ fontSize: 'clamp(1.25rem, 4vw, 2.25rem)' }}>
+        <div className="flex flex-col items-center justify-center leading-none p-0.5">
+          <span className="num-display font-black leading-none" style={{ fontSize: 'clamp(1rem, 3.8vw, 2.25rem)' }}>
             {number}
           </span>
-          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-error)] mt-1 leading-none">
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider text-[var(--color-error)] mt-0.5 leading-none">
             Wrong
           </span>
         </div>
       )}
 
       {(state === 'idle' || state === 'target') && (
-        <span className="num-display font-black leading-none" style={{ fontSize: 'clamp(1.25rem, 4vw, 2.25rem)' }}>
+        <span className="num-display font-black leading-none" style={{ fontSize: 'clamp(1.1rem, 4.2vw, 2.5rem)' }}>
           {number}
         </span>
       )}

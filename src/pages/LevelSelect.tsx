@@ -51,10 +51,10 @@ export function LevelSelect() {
         </div>
 
         {/* ── PROGRESS STRIP ─────────────────────── */}
-        <div className="card p-4 sm:p-5 flex flex-col gap-3 shadow-sm">
-          <div className="flex items-center justify-between text-xs font-bold">
+        <div className="card p-3.5 sm:p-5 flex flex-col gap-3 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
             <span className="label-tag">LEVEL PROGRESS</span>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
               <span className="text-[var(--color-text-secondary)]">
                 {unlockedCount} / 16 UNLOCKED
               </span>
@@ -79,7 +79,7 @@ export function LevelSelect() {
       </div>
 
       {/* ── LEVEL GRID ─────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {LEVELS.map((level) => {
           const isUnlocked = unlockedLevels.includes(level.id);
           const best = levelBests[level.id];
@@ -92,7 +92,7 @@ export function LevelSelect() {
               key={level.id}
               onClick={() => handlePlay(level.id, isUnlocked)}
               className={[
-                'card flex flex-col justify-between p-4 select-none min-h-[190px]',
+                'card flex flex-col justify-between p-3 sm:p-4 select-none min-h-[175px] sm:min-h-[190px]',
                 isUnlocked
                   ? 'cursor-pointer hover:shadow-[var(--shadow-md)] hover:-translate-y-1 hover:border-[var(--color-accent)] transition-all duration-200'
                   : 'opacity-55 cursor-not-allowed bg-[var(--color-surface-2)]',

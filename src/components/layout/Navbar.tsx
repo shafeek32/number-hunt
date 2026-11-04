@@ -24,13 +24,13 @@ export function Navbar() {
       style={{ height: 'var(--nav-height)' }}
     >
       <nav
-        className="max-w-5xl mx-auto h-full px-4 flex items-center justify-between"
+        className="max-w-5xl mx-auto h-full px-3 sm:px-4 md:px-6 flex items-center justify-between"
         aria-label="Main navigation"
       >
         {/* Logo */}
         <Link
           to="/"
-          className="flex items-center gap-1.5 group"
+          className="flex items-center gap-1.5 group shrink-0"
           aria-label="Number Hunt home"
         >
           <span className="num-display text-xl text-[var(--color-accent)] leading-none">
@@ -41,9 +41,29 @@ export function Navbar() {
           </span>
         </Link>
 
+        {/* Mobile quick auth status */}
+        <div className="flex md:hidden items-center">
+          {user ? (
+            <Link
+              to="/profile"
+              className="w-7 h-7 rounded-full bg-[var(--color-accent-light)] text-[var(--color-accent)] flex items-center justify-center text-xs font-black shadow-xs"
+              aria-label="View profile"
+            >
+              {profile?.avatar || '⚡'}
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-colors"
+            >
+              Sign In
+            </Link>
+          )}
+        </div>
+
         {/* Nav links */}
-        <div className="flex items-center gap-2">
-          <ul className="hidden md:flex items-center gap-1 list-none m-0 p-0">
+        <div className="hidden md:flex items-center gap-2">
+          <ul className="flex items-center gap-1 list-none m-0 p-0">
             {NAV_ITEMS.map(({ to, label, highlight }) => (
               <li key={to}>
                 {highlight ? (
@@ -81,7 +101,7 @@ export function Navbar() {
           </ul>
 
           {/* Auth button in desktop header */}
-          <div className="hidden md:flex items-center pl-2 border-l border-[var(--color-border)] ml-1">
+          <div className="flex items-center pl-2 border-l border-[var(--color-border)] ml-1">
             {user ? (
               <Link
                 to="/profile"

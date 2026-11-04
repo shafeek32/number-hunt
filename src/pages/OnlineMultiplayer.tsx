@@ -351,12 +351,12 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
             {roomCode}
           </div>
 
-          <div className="flex items-center justify-center gap-2 mt-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 mt-3">
             <Button
               variant="primary"
               size="sm"
               onClick={handleCopyInviteLink}
-              className="gap-1.5 shadow-sm"
+              className="gap-1.5 shadow-sm justify-center py-2.5 sm:py-1.5 text-xs font-bold"
             >
               {linkCopied ? '✓ INVITE LINK COPIED!' : '📋 COPY INVITE LINK'}
             </Button>
@@ -364,7 +364,7 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
               variant="secondary"
               size="sm"
               onClick={handleCopyCode}
-              className="gap-1.5"
+              className="gap-1.5 justify-center py-2.5 sm:py-1.5 text-xs font-bold"
             >
               {codeCopied ? '✓ CODE COPIED!' : '🏷️ COPY CODE'}
             </Button>
@@ -591,7 +591,7 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
       )}
 
       {/* Dual Scoreboard */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-4">
         {/* Host Card */}
         <div
           className={[
@@ -601,12 +601,12 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
               : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-75',
           ].join(' ')}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-black text-amber-500 tracking-wider truncate max-w-[120px]">
+          <div className="flex items-center justify-between mb-1 gap-2">
+            <span className="text-xs font-black text-amber-500 tracking-wider truncate flex-1 min-w-0">
               {localPlayer.role === 'host' ? localPlayer.name : remotePlayer?.name || 'Host'}
             </span>
             {activeRole === 'host' && !isFinished && (
-              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white animate-pulse shrink-0">
                 ACTIVE
               </span>
             )}
@@ -638,12 +638,12 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
               : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-75',
           ].join(' ')}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-black text-sky-500 tracking-wider truncate max-w-[120px]">
+          <div className="flex items-center justify-between mb-1 gap-2">
+            <span className="text-xs font-black text-sky-500 tracking-wider truncate flex-1 min-w-0">
               {localPlayer.role === 'guest' ? localPlayer.name : remotePlayer?.name || 'Guest'}
             </span>
             {activeRole === 'guest' && !isFinished && (
-              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse">
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse shrink-0">
                 ACTIVE
               </span>
             )}

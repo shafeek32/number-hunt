@@ -89,13 +89,13 @@ export function Leaderboard() {
       {/* ── FILTERS BAR ────────────────────── */}
       <Card padding="md" className="mb-6 flex flex-col gap-3">
         {/* Mode & Period Filter */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
           {/* Mode */}
-          <div className="flex items-center gap-1.5 p-1 bg-[var(--color-surface-2)] rounded-xl">
+          <div className="flex items-center gap-1.5 p-1 bg-[var(--color-surface-2)] rounded-xl w-full sm:w-auto">
             <button
               onClick={() => setMode('levels')}
               className={[
-                'px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer',
+                'flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer text-center',
                 mode === 'levels'
                   ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-xs'
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
@@ -106,7 +106,7 @@ export function Leaderboard() {
             <button
               onClick={() => setMode('daily')}
               className={[
-                'px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer',
+                'flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer text-center',
                 mode === 'daily'
                   ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-xs'
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
@@ -117,13 +117,13 @@ export function Leaderboard() {
           </div>
 
           {/* Period */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 w-full sm:w-auto overflow-x-auto pb-0.5">
             {(['all-time', 'month', 'week'] as TimePeriodFilter[]).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={[
-                  'px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer',
+                  'flex-1 sm:flex-none px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0 text-center whitespace-nowrap',
                   period === p
                     ? 'bg-[var(--color-accent)] text-white'
                     : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]',

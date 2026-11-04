@@ -36,19 +36,19 @@ export function Home() {
       : '—';
 
   return (
-    <PageContainer maxWidth="max-w-sm">
+    <PageContainer maxWidth="max-w-md sm:max-w-lg">
       {/* ── HERO ─────────────────────────────────── */}
-      <section className="flex flex-col items-center text-center gap-6 pt-5 pb-7">
+      <section className="flex flex-col items-center text-center gap-5 sm:gap-6 pt-3 sm:pt-5 pb-5 sm:pb-7">
         <div>
           <h1
             className="num-display font-black leading-none text-[var(--color-text-primary)] tracking-tight"
-            style={{ fontSize: 'clamp(3.5rem, 18vw, 6rem)' }}
+            style={{ fontSize: 'clamp(2.75rem, 14vw, 5.5rem)' }}
           >
             NUMBER
             <br />
             <span className="text-[var(--color-accent)]">HUNT</span>
           </h1>
-          <p className="mt-3 text-[var(--color-text-secondary)] font-medium text-sm tracking-wide">
+          <p className="mt-2.5 sm:mt-3 text-[var(--color-text-secondary)] font-medium text-xs sm:text-sm tracking-wide max-w-xs sm:max-w-sm mx-auto">
             How fast can you find them? Beat the clock.
           </p>
         </div>
@@ -114,16 +114,16 @@ export function Home() {
       </Card>
 
       {/* ── PERSONAL BESTS GRID ──────────────────── */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <Card padding="md" className="flex flex-col gap-1">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-4">
+        <Card padding="md" className="flex flex-col gap-1 min-w-0">
           <span className="label-tag">BEST TIME</span>
-          <span className="num-display text-2xl font-black text-[var(--color-accent)] leading-none">
+          <span className="num-display text-xl sm:text-2xl font-black text-[var(--color-accent)] leading-none truncate">
             {bestDisplay}
           </span>
         </Card>
-        <Card padding="md" className="flex flex-col gap-1">
+        <Card padding="md" className="flex flex-col gap-1 min-w-0">
           <span className="label-tag">BEST SCORE</span>
-          <span className="num-display text-2xl font-black text-[var(--color-text-primary)] leading-none">
+          <span className="num-display text-xl sm:text-2xl font-black text-[var(--color-text-primary)] leading-none truncate">
             {stats && stats.bestScore > 0 ? formatScore(stats.bestScore) : '—'}
           </span>
         </Card>

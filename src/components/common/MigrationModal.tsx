@@ -41,7 +41,7 @@ export function MigrationModal() {
       aria-labelledby="migration-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
     >
-      <Card className="w-full max-w-sm p-6 flex flex-col gap-4 shadow-2xl border-2 border-[var(--color-accent)] animate-scale-in">
+      <Card className="w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 sm:p-6 flex flex-col gap-4 shadow-2xl border-2 border-[var(--color-accent)] animate-scale-in">
         <div className="text-center">
           <span className="text-3xl mb-1 block">☁️</span>
           <h2 id="migration-title" className="text-xl font-black text-[var(--color-text-primary)] tracking-wide">

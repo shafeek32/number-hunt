@@ -36,7 +36,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       />
 
       {/* Panel */}
-      <div className="relative card p-6 w-full max-w-sm animate-page">
+      <div className="relative card p-5 sm:p-6 w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto animate-page">
         {title && (
           <h2 className="text-lg font-bold text-[var(--color-text-primary)] mb-4">
             {title}

@@ -25,7 +25,7 @@ export function Timer({ elapsedMs, isRunning = false, prominent = false }: Timer
           ]
             .filter(Boolean)
             .join(' ')}
-          style={{ fontSize: 'clamp(2rem, 8vw, 3.5rem)' }}
+          style={{ fontSize: 'clamp(1.5rem, 6.5vw, 3.25rem)' }}
           aria-live="polite"
           aria-label={`Timer: ${display}`}
         >

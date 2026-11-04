@@ -18,11 +18,11 @@ interface StatItemProps {
 
 function StatItem({ label, value, accent = false }: StatItemProps) {
   return (
-    <div className="flex flex-col items-center gap-1 py-4 flex-1">
+    <div className="flex flex-col items-center gap-1 py-3 sm:py-4 px-2 flex-1 min-w-0">
       <span className="label-tag">{label}</span>
       <span
         className={[
-          'num-display text-2xl font-black leading-none',
+          'num-display text-xl sm:text-2xl font-black leading-none truncate max-w-full',
           accent ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]',
         ].join(' ')}
       >
@@ -108,7 +108,7 @@ export function Result() {
   };
 
   return (
-    <PageContainer maxWidth="max-w-sm">
+    <PageContainer maxWidth="max-w-md">
       {/* ── TOAST NOTIFICATION FOR UNLOCKED ACHIEVEMENTS ── */}
       {result.newlyUnlockedAchievements && result.newlyUnlockedAchievements.length > 0 && (
         <AchievementToast achievementIds={result.newlyUnlockedAchievements} />
