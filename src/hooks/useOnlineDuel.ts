@@ -60,6 +60,47 @@ export function useOnlineDuel(
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Defensive sync when parameters change
+  useEffect(() => {
+    if (roomCode) {
+      const clean = roomCode.trim().toUpperCase();
+      setState((prev) => (prev.roomCode === clean ? prev : { ...prev, roomCode: clean }));
+    }
+  }, [roomCode]);
+
+  useEffect(() => {
+    if (initialRole) {
+      setState((prev) => {
+        if (prev.role === initialRole && prev.localPlayer.role === initialRole) return prev;
+        return {
+          ...prev,
+          role: initialRole,
+          localPlayer: {
+            ...prev.localPlayer,
+            role: initialRole,
+            color: initialRole === 'host' ? 'amber' : 'cyan',
+          },
+        };
+      });
+    }
+  }, [initialRole]);
+
+  useEffect(() => {
+    if (initialPlayerName && initialPlayerName.trim()) {
+      const cleanName = initialPlayerName.trim();
+      setState((prev) => {
+        if (prev.localPlayer.name === cleanName) return prev;
+        return {
+          ...prev,
+          localPlayer: {
+            ...prev.localPlayer,
+            name: cleanName,
+          },
+        };
+      });
+    }
+  }, [initialPlayerName]);
+
   // ──────────────────────────────────────────────────────────────────────────
   // BROADCAST HELPER
   // ──────────────────────────────────────────────────────────────────────────
@@ -497,16 +538,39 @@ export function useOnlineDuel(
     });
   }, [broadcastEvent, handleRemoteEvent]);
 
-  /** Update player name locally */
-  const setPlayerName = useCallback((name: string) => {
-    setState((prev) => ({
-      ...prev,
-      localPlayer: {
-        ...prev.localPlayer,
-        name: name.trim() || (prev.role === 'host' ? 'Player 1' : 'Player 2'),
-      },
-    }));
-  }, []);
+  /** Update player name locally and sync with channel */
+  const setPlayerName = useCallback(
+    (name: string) => {
+      const cleanName =
+        name.trim() || (stateRef.current.role === 'host' ? 'Player 1' : 'Player 2');
+      const updatedLocalPlayer = {
+        ...stateRef.current.localPlayer,
+        name: cleanName,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        localPlayer: updatedLocalPlayer,
+      }));
+
+      // Broadcast update to opponent
+      broadcastEvent({
+        type: 'PLAYER_JOIN',
+        player: updatedLocalPlayer,
+      });
+
+      // Update Presence state in Supabase channel
+      if (channelRef.current) {
+        channelRef.current.track({
+          id: localIdRef.current,
+          name: cleanName,
+          role: stateRef.current.role,
+          joinedAt: new Date().toISOString(),
+        });
+      }
+    },
+    [broadcastEvent]
+  );
 
   return {
     state,
