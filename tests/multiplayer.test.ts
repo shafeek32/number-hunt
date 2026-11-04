@@ -1,15 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { createInitialDuelState } from '../src/hooks/useDuelGame';
-import { LEVELS } from '../src/data/levels';
 
 describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
-  it('initializes duel state with correct level, players, and 0 mistakes', () => {
-    const duel = createInitialDuelState(1, 'Alice', 'Bob');
+  it('initializes duel state with default Level 8 (12 numbers), players, and 0 mistakes', () => {
+    const duel = createInitialDuelState(8, 'Alice', 'Bob');
 
     expect(duel.phase).toBe('setup');
-    expect(duel.level.id).toBe(1);
-    expect(duel.level.numberCount).toBe(5);
-    expect(duel.numbers.length).toBe(5);
+    expect(duel.level.id).toBe(8);
+    expect(duel.level.numberCount).toBe(12);
+    expect(duel.numbers.length).toBe(12);
     expect(duel.targetNumber).toBe(1);
     expect(duel.foundNumbers).toEqual([]);
     expect(duel.activePlayerId).toBe('p1');
@@ -17,11 +16,12 @@ describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
     expect(duel.players.p2.name).toBe('Bob');
     expect(duel.players.p1.mistakes).toBe(0);
     expect(duel.players.p2.mistakes).toBe(0);
+    expect(duel.isWrongEffect).toBe(false);
     expect(duel.winnerId).toBeNull();
   });
 
   it('correct sequential number clicks advance target and build streak', () => {
-    const duel = createInitialDuelState(1, 'Player 1', 'Player 2');
+    const duel = createInitialDuelState(8, 'Player 1', 'Player 2');
     duel.phase = 'playing';
 
     // Simulated click 1
@@ -50,8 +50,8 @@ describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
     expect(p1.bestStreak).toBe(2);
   });
 
-  it('wrong click increments mistakes, resets streak, and preserves best streak', () => {
-    const duel = createInitialDuelState(1, 'Player 1', 'Player 2');
+  it('wrong click triggers top red effect, does not reveal wrong number, resets streak', () => {
+    const duel = createInitialDuelState(8, 'Player 1', 'Player 2');
     duel.phase = 'playing';
 
     // Player 1 had found 1 and 2
@@ -59,29 +59,31 @@ describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
     duel.players.p1.bestStreak = 2;
     duel.targetNumber = 3;
 
-    // Player 1 accidentally clicks 5 instead of 3
-    const clickedNum = 5;
+    // Player 1 accidentally clicks a wrong tile
+    const clickedNum = 9;
     expect(clickedNum).not.toBe(duel.targetNumber);
 
     duel.players.p1.mistakes += 1;
     duel.players.p1.currentStreak = 0;
-    duel.wrongNumber = clickedNum;
+    duel.isWrongEffect = true;
+    duel.wrongNumber = null; // Wrong number is never revealed!
 
     expect(duel.players.p1.mistakes).toBe(1);
     expect(duel.players.p1.currentStreak).toBe(0);
     expect(duel.players.p1.bestStreak).toBe(2);
-    expect(duel.wrongNumber).toBe(5);
+    expect(duel.isWrongEffect).toBe(true);
+    expect(duel.wrongNumber).toBeNull();
   });
 
-  it('turn handoff resets target to 1, hides tiles, and activates Player 2', () => {
-    const duel = createInitialDuelState(1, 'Player 1', 'Player 2');
+  it('turn handoff resets target to 1, hides tiles, and activates Player 2 with top indicator', () => {
+    const duel = createInitialDuelState(8, 'Player 1', 'Player 2');
 
     // Simulate turn transition to Player 2
     const nextPlayerId: 'p1' | 'p2' = 'p2';
     duel.activePlayerId = nextPlayerId;
     duel.targetNumber = 1;
     duel.foundNumbers = [];
-    duel.wrongNumber = null;
+    duel.isWrongEffect = false;
     duel.phase = 'playing';
     duel.turnNumber += 1;
     duel.players.p2.turnsTaken += 1;
@@ -89,19 +91,19 @@ describe('2-Player Pass & Play Multiplayer Duel Engine', () => {
     expect(duel.activePlayerId).toBe('p2');
     expect(duel.targetNumber).toBe(1);
     expect(duel.foundNumbers).toEqual([]);
-    expect(duel.wrongNumber).toBeNull();
+    expect(duel.isWrongEffect).toBe(false);
     expect(duel.players.p2.turnsTaken).toBe(1);
     expect(duel.turnNumber).toBe(2);
   });
 
   it('reaching the final number crowns the active player as winner', () => {
-    const duel = createInitialDuelState(1, 'Player 1', 'Player 2'); // 5 numbers total
+    const duel = createInitialDuelState(8, 'Player 1', 'Player 2'); // 12 numbers total
     duel.phase = 'playing';
-    duel.foundNumbers = [1, 2, 3, 4];
-    duel.targetNumber = 5;
+    duel.foundNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    duel.targetNumber = 12;
 
-    // Player 1 taps final number 5
-    const finalFound = [...duel.foundNumbers, 5];
+    // Player 1 taps final number 12
+    const finalFound = [...duel.foundNumbers, 12];
     if (finalFound.length === duel.level.numberCount) {
       duel.phase = 'finished';
       duel.winnerId = 'p1';

@@ -4,11 +4,11 @@ import { LEVELS, getLevelById } from '../data/levels';
 import { generateBoard } from '../utils/randomizer';
 
 export function createInitialDuelState(
-  levelId: number = 4,
+  levelId: number = 8,
   p1Name: string = 'Player 1',
   p2Name: string = 'Player 2'
 ): DuelGameState {
-  const level = getLevelById(levelId) ?? LEVELS[3]; // default Level 4 (8 numbers)
+  const level = getLevelById(levelId) ?? LEVELS[7]; // default Level 8 (12 numbers)
   return {
     phase: 'setup',
     level,
@@ -38,11 +38,12 @@ export function createInitialDuelState(
     },
     winnerId: null,
     wrongNumber: null,
+    isWrongEffect: false,
     turnNumber: 1,
   };
 }
 
-export function useDuelGame(initialLevelId: number = 4) {
+export function useDuelGame(initialLevelId: number = 8) {
   const [duelState, setDuelState] = useState<DuelGameState>(() =>
     createInitialDuelState(initialLevelId)
   );
@@ -60,9 +61,9 @@ export function useDuelGame(initialLevelId: number = 4) {
     };
   }, []);
 
-  /** Launch a duel from setup with chosen level and player names */
+  /** Launch a duel from setup with chosen level (level 8 onwards) and player names */
   const startDuel = useCallback(
-    (levelId: number, p1Name?: string, p2Name?: string) => {
+    (levelId: number = 8, p1Name?: string, p2Name?: string) => {
       if (wrongTimerRef.current) {
         clearTimeout(wrongTimerRef.current);
         wrongTimerRef.current = null;
@@ -88,7 +89,7 @@ export function useDuelGame(initialLevelId: number = 4) {
   const handleNumberClick = useCallback((num: number) => {
     const current = stateRef.current;
     if (current.phase !== 'playing') return;
-    if (current.wrongNumber !== null) return;
+    if (current.isWrongEffect) return; // Ignore clicks during the brief red "WRONG!" feedback
     if (current.foundNumbers.includes(num)) return;
 
     const activeId = current.activePlayerId;
@@ -138,11 +139,16 @@ export function useDuelGame(initialLevelId: number = 4) {
     }
 
     // 2. Wrong number clicked!
-    // Increment mistakes for active player, reset current streak
+    // Increment mistakes for active player, reset current streak.
+    // NOTE: We DO NOT reveal the wrong number to players!
+    const nextPlayerId: 'p1' | 'p2' = activeId === 'p1' ? 'p2' : 'p1';
+    const nextPlayer = current.players[nextPlayerId];
     const updatedMistakes = activePlayer.mistakes + 1;
+
     setDuelState((prev) => ({
       ...prev,
-      wrongNumber: num,
+      isWrongEffect: true,
+      wrongNumber: null, // do not show wrong number on tile!
       players: {
         ...prev.players,
         [activeId]: {
@@ -153,44 +159,29 @@ export function useDuelGame(initialLevelId: number = 4) {
       },
     }));
 
-    // Wait 850ms so players see the wrong card, then trigger turn transition
+    // Flash red WRONG effect at the top for 600ms, then seamlessly switch to next player
     wrongTimerRef.current = setTimeout(() => {
       wrongTimerRef.current = null;
       setDuelState((prev) => {
         if (prev.phase !== 'playing') return prev;
         return {
           ...prev,
-          wrongNumber: null,
-          phase: 'turn_transition',
+          isWrongEffect: false,
+          activePlayerId: nextPlayerId,
+          targetNumber: 1,
+          foundNumbers: [], // tiles hide and sequence resets to 1
+          turnNumber: prev.turnNumber + 1,
+          players: {
+            ...prev.players,
+            [nextPlayerId]: {
+              ...nextPlayer,
+              turnsTaken: nextPlayer.turnsTaken + 1,
+              currentStreak: 0,
+            },
+          },
         };
       });
-    }, 850);
-  }, []);
-
-  /** Next player confirms they are holding device and ready to start */
-  const readyNextTurn = useCallback(() => {
-    setDuelState((prev) => {
-      const nextPlayerId: 'p1' | 'p2' = prev.activePlayerId === 'p1' ? 'p2' : 'p1';
-      const nextPlayer = prev.players[nextPlayerId];
-
-      return {
-        ...prev,
-        phase: 'playing',
-        activePlayerId: nextPlayerId,
-        targetNumber: 1,
-        foundNumbers: [],
-        wrongNumber: null,
-        turnNumber: prev.turnNumber + 1,
-        players: {
-          ...prev.players,
-          [nextPlayerId]: {
-            ...nextPlayer,
-            turnsTaken: nextPlayer.turnsTaken + 1,
-            currentStreak: 0,
-          },
-        },
-      };
-    });
+    }, 600);
   }, []);
 
   /** Rematch using the exact same board layout */
@@ -206,6 +197,7 @@ export function useDuelGame(initialLevelId: number = 4) {
       foundNumbers: [],
       winnerId: null,
       wrongNumber: null,
+      isWrongEffect: false,
       turnNumber: 1,
       activePlayerId: 'p1',
       players: {
@@ -241,6 +233,7 @@ export function useDuelGame(initialLevelId: number = 4) {
       foundNumbers: [],
       winnerId: null,
       wrongNumber: null,
+      isWrongEffect: false,
       turnNumber: 1,
       activePlayerId: 'p1',
       players: {
@@ -275,6 +268,7 @@ export function useDuelGame(initialLevelId: number = 4) {
       foundNumbers: [],
       winnerId: null,
       wrongNumber: null,
+      isWrongEffect: false,
       turnNumber: 1,
     }));
   }, []);
@@ -283,7 +277,6 @@ export function useDuelGame(initialLevelId: number = 4) {
     duelState,
     startDuel,
     startPlaying,
-    readyNextTurn,
     handleNumberClick,
     rematchSameBoard,
     rematchNewBoard,

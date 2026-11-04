@@ -10,8 +10,11 @@ import { Card } from '../components/common/Card';
 import { LEVELS, getLevelById } from '../data/levels';
 import { useDuelGame } from '../hooks/useDuelGame';
 
+// Filter levels from Level 8 onwards (Level 8 to Level 16)
+const MULTIPLAYER_LEVELS = LEVELS.filter((l) => l.id >= 8);
+
 export function Multiplayer() {
-  const [selectedLevelId, setSelectedLevelId] = useState<number>(4);
+  const [selectedLevelId, setSelectedLevelId] = useState<number>(8);
   const [p1Name, setP1Name] = useState<string>('Player 1');
   const [p2Name, setP2Name] = useState<string>('Player 2');
 
@@ -19,24 +22,33 @@ export function Multiplayer() {
     duelState,
     startDuel,
     startPlaying,
-    readyNextTurn,
     handleNumberClick,
     rematchSameBoard,
     rematchNewBoard,
     resetToSetup,
   } = useDuelGame(selectedLevelId);
 
-  const { phase, level, numbers, targetNumber, foundNumbers, activePlayerId, players, winnerId, wrongNumber, turnNumber } = duelState;
+  const {
+    phase,
+    level,
+    numbers,
+    targetNumber,
+    foundNumbers,
+    activePlayerId,
+    players,
+    winnerId,
+    isWrongEffect,
+    turnNumber,
+  } = duelState;
+
   const activePlayer = players[activePlayerId];
-  const nextPlayerId: 'p1' | 'p2' = activePlayerId === 'p1' ? 'p2' : 'p1';
-  const nextPlayer = players[nextPlayerId];
   const winner = winnerId ? players[winnerId] : null;
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 1. SETUP PHASE
+  // 1. SETUP PHASE (LEVELS FROM LEVEL 8 ONWARDS)
   // ──────────────────────────────────────────────────────────────────────────
   if (phase === 'setup') {
-    const currentSelectedLevel = getLevelById(selectedLevelId) ?? LEVELS[3];
+    const currentSelectedLevel = getLevelById(selectedLevelId) ?? MULTIPLAYER_LEVELS[0];
 
     return (
       <PageContainer maxWidth="max-w-md">
@@ -49,7 +61,7 @@ export function Multiplayer() {
             <span>←</span>
             <span>HOME</span>
           </Link>
-          <span className="label-tag text-amber-500">LOCAL MULTIPLAYER</span>
+          <span className="label-tag text-amber-500">2-PLAYER DUEL</span>
         </div>
 
         {/* Header */}
@@ -59,7 +71,7 @@ export function Multiplayer() {
             2-PLAYER DUEL
           </h1>
           <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 font-medium">
-            Pass & Play on the same screen. Open 1, 2, 3... if you make a mistake, all tiles hide and turn passes to Player 2!
+            Pass & Play on the same device. Open 1, 2, 3... if wrong, turn instantly passes to your opponent!
           </p>
         </div>
 
@@ -67,7 +79,7 @@ export function Multiplayer() {
         <Card className="mb-5">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
-              <span className="label-tag">PLAYERS</span>
+              <span className="label-tag">PLAYER NAMES</span>
               <span className="text-xs text-[var(--color-text-muted)]">Same device</span>
             </div>
 
@@ -107,32 +119,25 @@ export function Multiplayer() {
           </div>
         </Card>
 
-        {/* Level / Board Size Selector */}
+        {/* Level Selector (Levels 8 to 16) */}
         <Card className="mb-5">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2.5">
-              <span className="label-tag">BOARD SIZE & LEVEL</span>
+              <span className="label-tag">CHOOSE LEVEL (LEVEL 8 ONWARDS)</span>
               <span className="num-display text-sm font-bold text-[var(--color-accent)]">
                 Level {currentSelectedLevel.id} · {currentSelectedLevel.numberCount} Numbers
               </span>
             </div>
 
-            {/* Quick Presets */}
+            {/* Levels 8 to 16 Grid */}
             <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 1, label: '5 #s', sub: 'Quick' },
-                { id: 4, label: '8 #s', sub: 'Balanced' },
-                { id: 8, label: '12 #s', sub: 'Challenge' },
-                { id: 11, label: '15 #s', sub: 'Hard' },
-                { id: 14, label: '18 #s', sub: 'Very Hard' },
-                { id: 16, label: '20 #s', sub: 'Extreme' },
-              ].map((p) => {
-                const isSelected = selectedLevelId === p.id;
+              {MULTIPLAYER_LEVELS.map((lvl) => {
+                const isSelected = selectedLevelId === lvl.id;
                 return (
                   <button
-                    key={p.id}
+                    key={lvl.id}
                     type="button"
-                    onClick={() => setSelectedLevelId(p.id)}
+                    onClick={() => setSelectedLevelId(lvl.id)}
                     className={[
                       'flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all cursor-pointer',
                       isSelected
@@ -140,8 +145,8 @@ export function Multiplayer() {
                         : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]',
                     ].join(' ')}
                   >
-                    <span className="num-display text-base font-bold">{p.label}</span>
-                    <span className="text-[10px] opacity-80 mt-0.5">{p.sub}</span>
+                    <span className="num-display text-base font-bold">Level {lvl.id}</span>
+                    <span className="text-[10px] opacity-80 mt-0.5">{lvl.numberCount} numbers</span>
                   </button>
                 );
               })}
@@ -154,11 +159,11 @@ export function Multiplayer() {
           <div className="flex flex-col gap-1.5 text-xs text-[var(--color-text-secondary)]">
             <span className="font-bold text-[var(--color-text-primary)] flex items-center gap-1.5 mb-1">
               <span>📜</span>
-              <span>DUEL RULES</span>
+              <span>HOW IT WORKS</span>
             </span>
-            <p>• Player 1 starts hunting in ascending order: 1, 2, 3...</p>
-            <p>• If a wrong tile is opened: <strong>all tiles hide</strong>, and the device passes to Player 2!</p>
-            <p>• Player 2 uses their memory of revealed tiles to repeat 1, 2, 3 and push further!</p>
+            <p>• Player 1 hunts numbers in ascending order: 1, 2, 3...</p>
+            <p>• If a wrong tile is clicked, <strong>"WRONG" flashes in red at the top</strong>, all tiles hide, and the turn instantly passes to Player 2!</p>
+            <p>• Wrong numbers are never revealed — only your memory and wits prevail!</p>
             <p>• The first player to reach the final number wins the duel! 🏆</p>
           </div>
         </Card>
@@ -181,13 +186,12 @@ export function Multiplayer() {
   // ──────────────────────────────────────────────────────────────────────────
   const isCountdown = phase === 'countdown';
   const isPlaying = phase === 'playing';
-  const isTransition = phase === 'turn_transition';
   const isFinished = phase === 'finished';
 
   return (
     <PageContainer maxWidth="max-w-lg">
       {/* ── TOP UTILITY BAR ──────────────────── */}
-      <div className="flex items-center justify-between mb-4 text-xs font-bold text-[var(--color-text-muted)]">
+      <div className="flex items-center justify-between mb-3 text-xs font-bold text-[var(--color-text-muted)]">
         <button
           onClick={resetToSetup}
           className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors cursor-pointer"
@@ -198,8 +202,8 @@ export function Multiplayer() {
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-mono">
-            ROUND {turnNumber}
+          <span className="px-2.5 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-mono text-xs">
+            ROUND {turnNumber} · LEVEL {level.id}
           </span>
           <button
             onClick={rematchNewBoard}
@@ -211,6 +215,39 @@ export function Multiplayer() {
           </button>
         </div>
       </div>
+
+      {/* ── TOP RED WRONG FLASH OR ACTIVE PLAYER TURN BANNER ── */}
+      {isWrongEffect ? (
+        <div className="w-full bg-red-600/20 border-2 border-red-500 text-red-500 rounded-2xl py-3 px-4 text-center animate-shake shadow-lg shadow-red-500/25 mb-4">
+          <div className="font-black text-2xl tracking-wider leading-none">
+            ❌ WRONG!
+          </div>
+          <div className="text-xs font-bold text-red-400 mt-1">
+            Sequence reset · Passing turn...
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center mb-4">
+          <div
+            className={[
+              'px-6 py-2 rounded-full text-sm font-black uppercase tracking-wider mb-2 transition-all duration-300 shadow-sm',
+              activePlayerId === 'p1'
+                ? 'bg-amber-500 text-white ring-4 ring-amber-500/25'
+                : 'bg-sky-500 text-white ring-4 ring-sky-500/25',
+            ].join(' ')}
+          >
+            🎯 {activePlayer.name}'S TURN
+          </div>
+          <TargetDisplay target={targetNumber} />
+          <div className="text-xs font-bold text-[var(--color-text-muted)] mt-1">
+            CURRENT STREAK:{' '}
+            <span className="text-[var(--color-text-primary)] font-black">
+              {activePlayer.currentStreak}
+            </span>{' '}
+            / {level.numberCount}
+          </div>
+        </div>
+      )}
 
       {/* ── DUAL SCOREBOARD STRIP ────────────── */}
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -235,7 +272,10 @@ export function Multiplayer() {
           </div>
           <div className="flex items-baseline justify-between">
             <div className="text-xs text-[var(--color-text-muted)] font-bold">
-              BEST STREAK: <span className="font-black text-[var(--color-text-primary)]">{players.p1.bestStreak}</span>
+              BEST STREAK:{' '}
+              <span className="font-black text-[var(--color-text-primary)]">
+                {players.p1.bestStreak}
+              </span>
             </div>
             <div className="text-xs text-red-500 font-bold">
               {players.p1.mistakes} ❌
@@ -264,28 +304,15 @@ export function Multiplayer() {
           </div>
           <div className="flex items-baseline justify-between">
             <div className="text-xs text-[var(--color-text-muted)] font-bold">
-              BEST STREAK: <span className="font-black text-[var(--color-text-primary)]">{players.p2.bestStreak}</span>
+              BEST STREAK:{' '}
+              <span className="font-black text-[var(--color-text-primary)]">
+                {players.p2.bestStreak}
+              </span>
             </div>
             <div className="text-xs text-red-500 font-bold">
               {players.p2.mistakes} ❌
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* ── ACTIVE TURN BANNER & TARGET ───────── */}
-      <div className="flex flex-col items-center justify-center mb-5">
-        <div
-          className={[
-            'px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-2 transition-colors',
-            activePlayerId === 'p1' ? 'bg-amber-500 text-white' : 'bg-sky-500 text-white',
-          ].join(' ')}
-        >
-          🎯 {activePlayer.name}'S TURN
-        </div>
-        <TargetDisplay target={targetNumber} />
-        <div className="text-xs font-bold text-[var(--color-text-muted)] mt-1">
-          CURRENT STREAK: <span className="text-[var(--color-text-primary)] font-black">{activePlayer.currentStreak}</span> / {level.numberCount}
         </div>
       </div>
 
@@ -298,44 +325,6 @@ export function Multiplayer() {
               GET READY · {players.p1.name} STARTS
             </span>
             <Countdown from={3} onComplete={startPlaying} />
-          </div>
-        )}
-
-        {/* Turn Transition Modal Overlay */}
-        {isTransition && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[var(--color-bg)]/95 backdrop-blur-md rounded-2xl animate-scale-in p-6 text-center shadow-2xl border-2 border-red-500/30">
-            <span className="text-4xl mb-2">❌</span>
-            <h2 className="num-display text-2xl font-black text-red-500 mb-1">
-              WRONG NUMBER!
-            </h2>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              <strong>{activePlayer.name}</strong> made a mistake. All tiles hide and sequence resets to 1!
-            </p>
-
-            <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3.5 mb-5 flex items-center justify-center gap-3">
-              <span className="text-2xl">📱</span>
-              <div className="text-left">
-                <div className="text-xs font-bold text-[var(--color-text-muted)]">PASS DEVICE TO</div>
-                <div
-                  className={[
-                    'text-base font-black',
-                    nextPlayerId === 'p1' ? 'text-amber-500' : 'text-sky-500',
-                  ].join(' ')}
-                >
-                  {nextPlayer.name}
-                </div>
-              </div>
-            </div>
-
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              onClick={readyNextTurn}
-              className={nextPlayerId === 'p2' ? 'bg-sky-500 hover:bg-sky-600' : ''}
-            >
-              I'M READY, {nextPlayer.name}! START →
-            </Button>
           </div>
         )}
 
@@ -362,7 +351,8 @@ export function Multiplayer() {
                 <div>
                   <div className="text-xs font-bold text-amber-500 truncate">{players.p1.name}</div>
                   <div className="text-lg font-black text-[var(--color-text-primary)] mt-1">
-                    {players.p1.bestStreak} <span className="text-xs font-normal text-[var(--color-text-muted)]">streak</span>
+                    {players.p1.bestStreak}{' '}
+                    <span className="text-xs font-normal text-[var(--color-text-muted)]">streak</span>
                   </div>
                   <div className="text-xs text-red-500 font-semibold mt-0.5">
                     {players.p1.mistakes} mistakes
@@ -372,7 +362,8 @@ export function Multiplayer() {
                 <div>
                   <div className="text-xs font-bold text-sky-500 truncate">{players.p2.name}</div>
                   <div className="text-lg font-black text-[var(--color-text-primary)] mt-1">
-                    {players.p2.bestStreak} <span className="text-xs font-normal text-[var(--color-text-muted)]">streak</span>
+                    {players.p2.bestStreak}{' '}
+                    <span className="text-xs font-normal text-[var(--color-text-muted)]">streak</span>
                   </div>
                   <div className="text-xs text-red-500 font-semibold mt-0.5">
                     {players.p2.mistakes} mistakes
@@ -400,7 +391,7 @@ export function Multiplayer() {
         <div
           className={[
             'w-full transition-all duration-300',
-            isCountdown || isTransition || isFinished
+            isCountdown || isFinished
               ? 'filter blur-xs opacity-40 pointer-events-none'
               : '',
           ].join(' ')}
@@ -408,19 +399,15 @@ export function Multiplayer() {
           <GameBoard rows={level.gridSize.rows} cols={level.gridSize.cols}>
             {numbers.map((num) => {
               const isFound = foundNumbers.includes(num);
-              const isWrong = wrongNumber === num;
-              const cardState: NumberCardState = isWrong
-                ? 'wrong'
-                : isFound
-                ? 'found'
-                : 'hidden';
+              // WRONG NUMBERS ARE NEVER REVEALED ON THE BOARD
+              const cardState: NumberCardState = isFound ? 'found' : 'hidden';
 
               return (
                 <NumberCard
                   key={num}
                   number={num}
                   state={cardState}
-                  disabled={!isPlaying || wrongNumber !== null}
+                  disabled={!isPlaying || isWrongEffect}
                   onClick={handleNumberClick}
                 />
               );

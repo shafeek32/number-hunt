@@ -10,7 +10,7 @@ export interface DuelPlayer {
   turnsTaken: number;
 }
 
-export type DuelPhase = 'setup' | 'countdown' | 'playing' | 'turn_transition' | 'finished';
+export type DuelPhase = 'setup' | 'countdown' | 'playing' | 'finished';
 
 export interface DuelGameState {
   phase: DuelPhase;
@@ -25,5 +25,6 @@ export interface DuelGameState {
   };
   winnerId: 'p1' | 'p2' | null;
   wrongNumber: number | null;
+  isWrongEffect: boolean;
   turnNumber: number;
 }
