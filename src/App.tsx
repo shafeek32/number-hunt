@@ -10,6 +10,7 @@ import { Result } from './pages/Result';
 import { Leaderboard } from './pages/Leaderboard';
 import { DailyChallenge } from './pages/DailyChallenge';
 import { Multiplayer } from './pages/Multiplayer';
+import { OnlineMultiplayer } from './pages/OnlineMultiplayer';
 import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
@@ -38,12 +39,14 @@ export function App() {
 
         <Routes>
           {/* Main Number Hunt Gameplay & Community Routes */}
-          <Route path="/"            element={<Home />} />
-          <Route path="/levels"      element={<LevelSelect />} />
-          <Route path="/game"        element={<Game />} />
-          <Route path="/multiplayer" element={<Multiplayer />} />
-          <Route path="/result"      element={<Result />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/"                   element={<Home />} />
+          <Route path="/levels"             element={<LevelSelect />} />
+          <Route path="/game"               element={<Game />} />
+          <Route path="/multiplayer"        element={<Multiplayer />} />
+          <Route path="/online"             element={<OnlineMultiplayer />} />
+          <Route path="/online/:roomCode"   element={<OnlineMultiplayer />} />
+          <Route path="/result"             element={<Result />} />
+          <Route path="/leaderboard"        element={<Leaderboard />} />
           <Route path="/daily"       element={<DailyChallenge />} />
           <Route path="/profile"     element={<Profile />} />
           <Route path="/login"       element={<Login />} />

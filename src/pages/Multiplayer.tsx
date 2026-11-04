@@ -66,7 +66,7 @@ export function Multiplayer() {
         </div>
 
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <span className="text-4xl block mb-2">⚔️</span>
           <h1 className="num-display text-3xl font-black text-[var(--color-text-primary)] tracking-tight">
             2-PLAYER DUEL
@@ -74,6 +74,22 @@ export function Multiplayer() {
           <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 font-medium">
             Pass & Play on the same device. Open 1, 2, 3... if wrong, turn instantly passes to your opponent!
           </p>
+        </div>
+
+        {/* Mode Switch Tabs */}
+        <div className="grid grid-cols-2 p-1 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border)] mb-5 text-xs font-bold">
+          <div className="py-2 text-center rounded-xl bg-[var(--color-surface)] text-[var(--color-accent)] shadow-xs">
+            📱 Pass & Play (Local)
+          </div>
+          <Link
+            to="/online"
+            className="py-2 text-center rounded-xl text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors flex items-center justify-center gap-1.5"
+          >
+            <span>🌐 Online Duel</span>
+            <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-600 rounded-full font-black">
+              LIVE
+            </span>
+          </Link>
         </div>
 
         {/* Players Configuration */}

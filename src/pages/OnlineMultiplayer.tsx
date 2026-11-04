@@ -1,0 +1,584 @@
+import { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { PageContainer } from '../components/layout/PageContainer';
+import { GameBoard } from '../components/game/GameBoard';
+import { NumberCard, type NumberCardState } from '../components/game/NumberCard';
+import { TargetDisplay } from '../components/game/TargetDisplay';
+import { Countdown } from '../components/game/Countdown';
+import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
+import { LEVELS, getLevelById } from '../data/levels';
+import { useOnlineDuel } from '../hooks/useOnlineDuel';
+import { isSupabaseConfigured } from '../lib/supabase';
+import type { OnlineRole } from '../types/onlineDuel';
+
+const MULTIPLAYER_LEVELS = LEVELS.filter((l) => l.id >= 8);
+
+function generateRoomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export function OnlineMultiplayer() {
+  const { roomCode: paramRoomCode } = useParams<{ roomCode?: string }>();
+  const navigate = useNavigate();
+
+  // If in room route, determine role: URL query ?role=guest or check state
+  const isRoomMode = Boolean(paramRoomCode);
+  const searchParams = new URLSearchParams(window.location.search);
+  const explicitRole = (searchParams.get('role') as OnlineRole) || (paramRoomCode ? 'guest' : 'host');
+
+  // Lobby Inputs
+  const [inputCode, setInputCode] = useState<string>('');
+  const [playerName, setPlayerName] = useState<string>('');
+  const [selectedLevelId, setSelectedLevelId] = useState<number>(8);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  // Hook handles active duel state when inside a room
+  const {
+    state,
+    startGame,
+    startPlaying,
+    handleNumberClick,
+    rematchSameBoard,
+    rematchNewBoard,
+  } = useOnlineDuel(paramRoomCode || '', explicitRole, playerName);
+
+  const {
+    phase,
+    levelId,
+    numberCount,
+    boardNumbers,
+    targetNumber,
+    foundNumbers,
+    activeRole,
+    localPlayer,
+    remotePlayer,
+    wrongNumber,
+    isWrongEffect,
+    winnerRole,
+    turnNumber,
+    connectionStatus,
+    errorMessage,
+  } = state;
+
+  const currentLevel = getLevelById(levelId) ?? MULTIPLAYER_LEVELS[0];
+  const isMyTurn = localPlayer.role === activeRole;
+  const activePlayerName = isMyTurn ? localPlayer.name : remotePlayer?.name || 'Opponent';
+  const winner = winnerRole ? (winnerRole === localPlayer.role ? localPlayer : remotePlayer) : null;
+  const isWinnerMe = winnerRole === localPlayer.role;
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 1. ONLINE LOBBY / ROOM CREATION SCREEN (When no roomCode in URL)
+  // ──────────────────────────────────────────────────────────────────────────
+  if (!isRoomMode) {
+    const handleCreateRoom = () => {
+      const newCode = generateRoomCode();
+      const name = playerName.trim() || 'Player 1';
+      navigate(`/online/${newCode}?role=host&name=${encodeURIComponent(name)}`);
+    };
+
+    const handleJoinRoom = () => {
+      const clean = inputCode.trim().toUpperCase();
+      if (!clean) return;
+      const name = playerName.trim() || 'Player 2';
+      navigate(`/online/${clean}?role=guest&name=${encodeURIComponent(name)}`);
+    };
+
+    return (
+      <PageContainer maxWidth="max-w-md">
+        {/* Navigation */}
+        <div className="flex items-center justify-between mb-4 text-xs font-bold text-[var(--color-text-muted)]">
+          <Link
+            to="/multiplayer"
+            className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
+          >
+            <span>←</span>
+            <span>PASS & PLAY</span>
+          </Link>
+          <span className="label-tag text-emerald-500">REALTIME WEBSOCKET</span>
+        </div>
+
+        {/* Title */}
+        <div className="text-center mb-5">
+          <span className="text-4xl block mb-2">🌐</span>
+          <h1 className="num-display text-3xl font-black text-[var(--color-text-primary)] tracking-tight">
+            ONLINE DUEL
+          </h1>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 font-medium">
+            Play live with a friend anywhere in the world! Create a room, share the link, and race in real-time.
+          </p>
+        </div>
+
+        {/* Mode Switch Tabs */}
+        <div className="grid grid-cols-2 p-1 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border)] mb-5 text-xs font-bold">
+          <Link
+            to="/multiplayer"
+            className="py-2 text-center rounded-xl text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            📱 Pass & Play (Local)
+          </Link>
+          <div className="py-2 text-center rounded-xl bg-[var(--color-surface)] text-[var(--color-accent)] shadow-xs flex items-center justify-center gap-1.5">
+            <span>🌐 Online Duel</span>
+            <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-600 rounded-full font-black">
+              LIVE
+            </span>
+          </div>
+        </div>
+
+        {!isSupabaseConfigured && (
+          <div className="p-4 mb-4 rounded-xl bg-amber-500/10 border border-amber-500 text-amber-500 text-xs font-semibold">
+            ⚠️ Supabase credentials are required for live WebSocket multiplayer.
+          </div>
+        )}
+
+        {/* Player Name */}
+        <Card className="mb-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="online-name" className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+              YOUR DISPLAY NAME
+            </label>
+            <input
+              id="online-name"
+              type="text"
+              maxLength={16}
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="e.g. SpeedMaster"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] font-semibold text-sm focus:border-[var(--color-accent)] focus:outline-none transition-colors"
+            />
+          </div>
+        </Card>
+
+        {/* Create Room */}
+        <Card className="mb-4">
+          <div className="flex flex-col gap-3">
+            <span className="font-bold text-sm text-[var(--color-text-primary)] flex items-center gap-2">
+              <span>🏠</span>
+              <span>CREATE A ROOM</span>
+            </span>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Choose your starting level and invite a friend with a room code.
+            </p>
+
+            {/* Level selection */}
+            <div>
+              <span className="label-tag mb-1.5 block">SELECT LEVEL (LEVEL 8 ONWARDS)</span>
+              <div className="grid grid-cols-3 gap-2">
+                {MULTIPLAYER_LEVELS.slice(0, 6).map((lvl) => (
+                  <button
+                    key={lvl.id}
+                    type="button"
+                    onClick={() => setSelectedLevelId(lvl.id)}
+                    className={[
+                      'p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer',
+                      selectedLevelId === lvl.id
+                        ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]',
+                    ].join(' ')}
+                  >
+                    Level {lvl.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button variant="primary" size="lg" fullWidth onClick={handleCreateRoom}>
+              CREATE ROOM & GET LINK
+            </Button>
+          </div>
+        </Card>
+
+        {/* Join Room */}
+        <Card className="mb-6">
+          <div className="flex flex-col gap-3">
+            <span className="font-bold text-sm text-[var(--color-text-primary)] flex items-center gap-2">
+              <span>🔑</span>
+              <span>JOIN WITH CODE</span>
+            </span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                maxLength={6}
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                placeholder="ROOM CODE"
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] font-mono font-black text-center tracking-widest text-base focus:border-[var(--color-accent)] focus:outline-none transition-colors"
+              />
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={handleJoinRoom}
+                disabled={!inputCode.trim()}
+              >
+                JOIN
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 2. IN-ROOM LOBBY (WAITING FOR OPPONENT TO CONNECT / READY UP)
+  // ──────────────────────────────────────────────────────────────────────────
+  if (phase === 'lobby') {
+    const inviteUrl = window.location.origin + `/online/${state.roomCode}?role=guest`;
+
+    const handleCopy = async () => {
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      } catch {
+        alert(inviteUrl);
+      }
+    };
+
+    const isHost = localPlayer.role === 'host';
+    const isOpponentReady = Boolean(remotePlayer);
+
+    return (
+      <PageContainer maxWidth="max-w-md">
+        {/* Navigation */}
+        <div className="flex items-center justify-between mb-4 text-xs font-bold text-[var(--color-text-muted)]">
+          <Link
+            to="/online"
+            className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
+          >
+            <span>←</span>
+            <span>LEAVE ROOM</span>
+          </Link>
+          <div className="flex items-center gap-1.5">
+            <span
+              className={[
+                'w-2 h-2 rounded-full',
+                connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500',
+              ].join(' ')}
+            />
+            <span className="font-mono text-[10px] text-[var(--color-text-muted)] uppercase">
+              {connectionStatus}
+            </span>
+          </div>
+        </div>
+
+        {/* Room Banner */}
+        <Card className="mb-5 text-center p-5">
+          <span className="label-tag text-[var(--color-text-muted)] mb-1 block">ROOM CODE</span>
+          <div className="num-display text-4xl font-black text-[var(--color-accent)] tracking-widest mb-3">
+            {state.roomCode}
+          </div>
+          <Button variant="secondary" size="sm" onClick={handleCopy} className="mx-auto">
+            {copied ? '✓ INVITE LINK COPIED!' : '📋 COPY INVITE LINK'}
+          </Button>
+        </Card>
+
+        {/* Players in Room */}
+        <Card className="mb-5">
+          <div className="flex flex-col gap-3">
+            <span className="label-tag border-b border-[var(--color-border)] pb-2">PLAYERS CONNECTED</span>
+
+            {/* Local Player */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-amber-500" />
+                <div>
+                  <div className="font-bold text-sm text-[var(--color-text-primary)]">
+                    {localPlayer.name} <span className="text-xs text-amber-500 font-normal">({localPlayer.role.toUpperCase()})</span>
+                  </div>
+                  <div className="text-[10px] text-[var(--color-text-muted)]">You</div>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-emerald-500">✓ READY</span>
+            </div>
+
+            {/* Remote Opponent */}
+            {remotePlayer ? (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 animate-scale-in">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-sky-500" />
+                  <div>
+                    <div className="font-bold text-sm text-[var(--color-text-primary)]">
+                      {remotePlayer.name} <span className="text-xs text-sky-500 font-normal">({remotePlayer.role.toUpperCase()})</span>
+                    </div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">Opponent</div>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-emerald-500">✓ CONNECTED</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-[var(--color-border)] text-center">
+                <span className="text-2xl mb-1 animate-pulse">⏳</span>
+                <span className="text-xs font-bold text-[var(--color-text-secondary)]">
+                  Waiting for opponent to join...
+                </span>
+                <span className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                  Share code <strong className="text-[var(--color-accent)]">{state.roomCode}</strong> or copy the invite link above!
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Start Game Controls */}
+        {isHost ? (
+          <div className="flex flex-col gap-3">
+            <Card>
+              <div className="flex flex-col gap-2">
+                <span className="label-tag">MATCH LEVEL (LEVEL 8 ONWARDS)</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {MULTIPLAYER_LEVELS.slice(0, 6).map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => setSelectedLevelId(lvl.id)}
+                      className={[
+                        'p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer',
+                        selectedLevelId === lvl.id
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)]'
+                          : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]',
+                      ].join(' ')}
+                    >
+                      Level {lvl.id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={!isOpponentReady}
+              onClick={() => startGame(selectedLevelId)}
+            >
+              {isOpponentReady ? '⚔️ START ONLINE DUEL' : 'WAITING FOR OPPONENT...'}
+            </Button>
+          </div>
+        ) : (
+          <Card className="text-center p-4">
+            <span className="text-sm font-bold text-[var(--color-text-secondary)] block">
+              Connected! Waiting for Host to start match...
+            </span>
+            <span className="text-xs text-[var(--color-text-muted)] mt-1 block">
+              Host will pick the level and launch the countdown.
+            </span>
+          </Card>
+        )}
+
+        {errorMessage && (
+          <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500 text-red-500 text-xs">
+            {errorMessage}
+          </div>
+        )}
+      </PageContainer>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 3. IN-GAME & VICTORY ARENA
+  // ──────────────────────────────────────────────────────────────────────────
+  const isCountdown = phase === 'countdown';
+  const isFinished = phase === 'finished';
+
+  return (
+    <PageContainer maxWidth="max-w-lg">
+      {/* Utility Bar */}
+      <div className="flex items-center justify-between mb-3 text-xs font-bold text-[var(--color-text-muted)]">
+        <Link
+          to="/online"
+          className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
+        >
+          <span>←</span>
+          <span>LEAVE</span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-mono text-xs">
+            ROUND {turnNumber} · LEVEL {currentLevel.id}
+          </span>
+          <span className="text-xs font-mono font-bold text-emerald-500 flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            LIVE
+          </span>
+        </div>
+      </div>
+
+      {/* Top Banner: Red WRONG Flash or Turn Indicator */}
+      {isWrongEffect ? (
+        <div className="w-full bg-red-600/20 border-2 border-red-500 text-red-500 rounded-2xl py-3 px-4 text-center animate-shake shadow-lg shadow-red-500/25 mb-4">
+          <div className="font-black text-2xl tracking-wider leading-none">
+            ❌ WRONG!
+          </div>
+          <div className="text-xs font-bold text-red-400 mt-1">
+            Sequence reset · Passing turn...
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center mb-4">
+          <div
+            className={[
+              'px-6 py-2 rounded-full text-sm font-black uppercase tracking-wider mb-2 transition-all duration-300 shadow-sm',
+              isMyTurn
+                ? localPlayer.role === 'host'
+                  ? 'bg-amber-500 text-white ring-4 ring-amber-500/25 animate-pulse'
+                  : 'bg-sky-500 text-white ring-4 ring-sky-500/25 animate-pulse'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border border-[var(--color-border)]',
+            ].join(' ')}
+          >
+            {isMyTurn ? '👉 YOUR TURN!' : `⏳ OPPONENT'S TURN (${activePlayerName})`}
+          </div>
+
+          <TargetDisplay target={targetNumber} />
+          <div className="text-xs font-bold text-[var(--color-text-muted)] mt-1">
+            STREAK:{' '}
+            <span className="text-[var(--color-text-primary)] font-black">
+              {isMyTurn ? localPlayer.currentStreak : remotePlayer?.currentStreak || 0}
+            </span>{' '}
+            / {numberCount}
+          </div>
+        </div>
+      )}
+
+      {/* Dual Scoreboard */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Host Card */}
+        <div
+          className={[
+            'p-3 rounded-2xl border-2 transition-all duration-200 relative overflow-hidden',
+            activeRole === 'host' && !isFinished
+              ? 'border-amber-500 bg-amber-500/10 shadow-md ring-2 ring-amber-500/30'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-75',
+          ].join(' ')}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-black text-amber-500 tracking-wider truncate max-w-[120px]">
+              {localPlayer.role === 'host' ? localPlayer.name : remotePlayer?.name || 'Host'}
+            </span>
+            {activeRole === 'host' && !isFinished && (
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                ACTIVE
+              </span>
+            )}
+          </div>
+          <div className="flex items-baseline justify-between text-xs">
+            <div className="text-[var(--color-text-muted)] font-bold">
+              BEST: <span className="font-black text-[var(--color-text-primary)]">{localPlayer.role === 'host' ? localPlayer.bestStreak : remotePlayer?.bestStreak || 0}</span>
+            </div>
+            <div className="text-red-500 font-bold">
+              {localPlayer.role === 'host' ? localPlayer.mistakes : remotePlayer?.mistakes || 0} ❌
+            </div>
+          </div>
+        </div>
+
+        {/* Guest Card */}
+        <div
+          className={[
+            'p-3 rounded-2xl border-2 transition-all duration-200 relative overflow-hidden',
+            activeRole === 'guest' && !isFinished
+              ? 'border-sky-500 bg-sky-500/10 shadow-md ring-2 ring-sky-500/30'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-75',
+          ].join(' ')}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-black text-sky-500 tracking-wider truncate max-w-[120px]">
+              {localPlayer.role === 'guest' ? localPlayer.name : remotePlayer?.name || 'Guest'}
+            </span>
+            {activeRole === 'guest' && !isFinished && (
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse">
+                ACTIVE
+              </span>
+            )}
+          </div>
+          <div className="flex items-baseline justify-between text-xs">
+            <div className="text-[var(--color-text-muted)] font-bold">
+              BEST: <span className="font-black text-[var(--color-text-primary)]">{localPlayer.role === 'guest' ? localPlayer.bestStreak : remotePlayer?.bestStreak || 0}</span>
+            </div>
+            <div className="text-red-500 font-bold">
+              {localPlayer.role === 'guest' ? localPlayer.mistakes : remotePlayer?.mistakes || 0} ❌
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Board & Overlays */}
+      <div className="relative min-h-[280px] flex items-center justify-center">
+        {/* Countdown Overlay */}
+        {isCountdown && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[var(--color-bg)]/90 backdrop-blur-xs rounded-2xl animate-fade-in p-6 text-center">
+            <span className="text-xs font-black uppercase tracking-widest text-amber-500 mb-2">
+              DUEL STARTING · HOST STARTS FIRST
+            </span>
+            <Countdown from={3} onComplete={startPlaying} />
+          </div>
+        )}
+
+        {/* Victory Screen */}
+        {isFinished && winner && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[var(--color-bg)]/95 backdrop-blur-md rounded-2xl animate-scale-in p-6 text-center shadow-2xl border-2 border-[var(--color-accent)]">
+            <span className="text-5xl mb-2 animate-bounce">👑</span>
+            <span className="label-tag text-emerald-500 mb-1">
+              {isWinnerMe ? '🎉 VICTORY! YOU WON!' : 'MATCH FINISHED'}
+            </span>
+            <h2 className="num-display text-3xl font-black mb-3 leading-none text-[var(--color-accent)]">
+              {winner.name} WINS!
+            </h2>
+            <p className="text-xs text-[var(--color-text-secondary)] mb-5">
+              Conquered all {numberCount} numbers in Round {turnNumber}!
+            </p>
+
+            <div className="flex flex-col gap-2.5 w-full">
+              <Button variant="primary" size="md" fullWidth onClick={rematchSameBoard}>
+                ↺ REMATCH (Same Board)
+              </Button>
+              <Button variant="secondary" size="md" fullWidth onClick={rematchNewBoard}>
+                🎲 REMATCH (New Board)
+              </Button>
+              <Link to="/online" className="w-full">
+                <Button variant="ghost" size="sm" fullWidth>
+                  ← Back to Online Lobby
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Real-time Board */}
+        <div
+          className={[
+            'w-full transition-all duration-300',
+            isCountdown || isFinished ? 'filter blur-xs opacity-40 pointer-events-none' : '',
+          ].join(' ')}
+        >
+          <GameBoard rows={currentLevel.gridSize.rows} cols={currentLevel.gridSize.cols}>
+            {boardNumbers.map((num) => {
+              const isFound = foundNumbers.includes(num);
+              const isWrong = wrongNumber === num;
+              const cardState: NumberCardState = isWrong
+                ? 'wrong'
+                : isFound
+                ? 'found'
+                : 'hidden';
+
+              return (
+                <NumberCard
+                  key={num}
+                  number={num}
+                  state={cardState}
+                  disabled={!isMyTurn || isWrongEffect || wrongNumber !== null}
+                  onClick={handleNumberClick}
+                />
+              );
+            })}
+          </GameBoard>
+        </div>
+      </div>
+    </PageContainer>
+  );
+}

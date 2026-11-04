@@ -43,6 +43,7 @@
 
 - [🌟 Features & Highlights](#-features--highlights)
 - [⚔️ 2-Player Pass & Play Duel](#️-2-player-pass--play-duel)
+- [🌐 Real-Time Online Multiplayer](#-real-time-online-multiplayer)
 - [🕹️ How It Works (Gameplay Loop)](#️-how-it-works-gameplay-loop)
 - [📐 16 Levels & Grid Matrix](#-16-levels--grid-matrix)
 - [🧮 Scoring System & Mathematical Formulas](#-scoring-system--mathematical-formulas)
@@ -115,6 +116,41 @@ flowchart TD
    - The first player to conquer the entire board by finding all numbers to the end wins the match! 🏆
    - Includes post-game head-to-head match stats (Best Streak, Total Mistakes, Turns Taken).
    - Play again options: **Rematch (Same Board)** for revenge on the same layout, or **Rematch (New Board)** for a fresh challenge.
+
+---
+
+## 🌐 Real-Time Online Multiplayer
+
+Number Hunt features **Instant Online 1v1 Duels** (`/online`) powered by **Supabase Realtime WebSockets** (Broadcast & Presence):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Host as Player 1 (Host)
+    participant WS as Supabase Realtime Channel
+    actor Guest as Player 2 (Guest)
+
+    Host->>WS: Create Room ("HUNT72") & Track Presence
+    Host-->>Guest: Shares invite link (numberhunt.online/online/HUNT72)
+    Guest->>WS: Joins Room ("HUNT72") & Tracks Presence
+    WS-->>Host: Presence Sync (Guest Connected!)
+    Host->>WS: Broadcast START_GAME (Synchronized Seed & Board)
+    WS-->>Guest: Synchronous 3-2-1 Countdown
+    Note over Host,Guest: Match Begins · Host Turn 1
+    Host->>WS: Broadcast TILE_CLICK_CORRECT (Number 1)
+    WS-->>Guest: Tile 1 flips green in real-time
+    Host->>WS: Broadcast TILE_CLICK_WRONG (Number 9)
+    WS-->>Guest: Red WRONG flash & Wrong number shown
+    Note over Host,Guest: Sequence Resets to 1 · Turn switches to Guest!
+    Guest->>WS: Taps 1, 2, 3 from memory...
+```
+
+### ⚡ Online Features:
+- **Instant Room Codes & 1-Click Invite Links**: Generate a 6-character room code (e.g. `HUNT72`) with a one-click copyable URL (`/online/HUNT72`) to share with anyone over WhatsApp, Discord, or iMessage.
+- **Sub-50ms Synchronized Gameplay**: Tile flips, wrong guesses, mistakes, and turn handoffs sync live across both players using Supabase Realtime Broadcast.
+- **Identical Seeded Layout**: The board is generated and distributed deterministically by the host, ensuring both players compete on the exact same tile grid.
+- **Turn Switch on Mistake**: If a player clicks a wrong tile, the number flashes in red on both screens, the top banner alerts `❌ WRONG!`, and the turn immediately switches to the opponent.
+- **Instant Rematches**: Crown the winner with head-to-head match stats, and replay instantly on the same board or generate a new board with 1 click.
 
 ---
 
