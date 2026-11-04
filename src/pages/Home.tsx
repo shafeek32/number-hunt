@@ -53,11 +53,18 @@ export function Home() {
           </p>
         </div>
 
-        <Link to="/levels" className="w-full" tabIndex={-1}>
-          <Button variant="primary" size="lg" fullWidth id="play-now-btn">
-            ▶ PLAY NOW
-          </Button>
-        </Link>
+        <div className="flex flex-col gap-2.5 w-full">
+          <Link to="/levels" className="w-full" tabIndex={-1}>
+            <Button variant="primary" size="lg" fullWidth id="play-now-btn">
+              ▶ PLAY SOLO
+            </Button>
+          </Link>
+          <Link to="/multiplayer" className="w-full" tabIndex={-1}>
+            <Button variant="secondary" size="md" fullWidth id="multiplayer-duel-btn">
+              ⚔️ 2-PLAYER PASS & PLAY DUEL
+            </Button>
+          </Link>
+        </div>
       </section>
 
       {/* ── YOUR PROGRESS & STREAK ───────────────── */}

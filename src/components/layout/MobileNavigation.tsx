@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 const NAV_ITEMS = [
   { to: '/',            label: 'Home',        icon: '⊙' },
   { to: '/levels',      label: 'Play',        icon: '▶', highlight: true },
+  { to: '/multiplayer', label: 'Duel',        icon: '⚔️' },
   { to: '/leaderboard', label: 'Board',       icon: '🏆' },
   { to: '/daily',       label: 'Daily',       icon: '🔥' },
   { to: '/profile',     label: 'Me',          icon: '◎' },

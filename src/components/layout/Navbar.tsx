@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 const NAV_ITEMS = [
   { to: '/',            label: 'Home' },
   { to: '/levels',      label: 'Play',        highlight: true },
+  { to: '/multiplayer', label: '⚔️ Duel' },
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/daily',       label: 'Daily' },
   { to: '/profile',     label: 'Profile' },

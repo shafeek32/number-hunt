@@ -42,6 +42,7 @@
 ## 📖 Table of Contents
 
 - [🌟 Features & Highlights](#-features--highlights)
+- [⚔️ 2-Player Pass & Play Duel](#️-2-player-pass--play-duel)
 - [🕹️ How It Works (Gameplay Loop)](#️-how-it-works-gameplay-loop)
 - [📐 16 Levels & Grid Matrix](#-16-levels--grid-matrix)
 - [🧮 Scoring System & Mathematical Formulas](#-scoring-system--mathematical-formulas)
@@ -64,6 +65,7 @@
 ## 🌟 Features & Highlights
 
 - **⚡ Buttery Smooth 60 FPS Micro-Interactions**: Built using React 19 and Tailwind CSS v4 with custom GPU-accelerated CSS animations (`card-flip`, `card-wrong`, `shake`, `scale-in`).
+- **⚔️ 2-Player Pass & Play Memory Duel**: Play against a friend on the same screen! Player 1 opens 1, 2, 3... if they make a mistake on 4, all tiles flip face-down and the turn passes to Player 2. Player 2 uses their memory of what was revealed to race to 4, 5, 6!
 - **🎮 16 Handcrafted Progressive Levels**: Difficulty scales smoothly from 5 numbers on a compact $2 \times 3$ grid up to 20 numbers packed into an intense $4 \times 5$ layout.
 - **📅 Deterministic Daily Challenge**: All players across the world receive the exact same daily board seed to compete for global daily leaderboard dominance.
 - **👤 Instant Guest Play + Automatic Cloud Migration**: Play instantly without logging in! Your progress, high scores, stars, and streaks are tracked locally. If you choose to sign up later, a 1-click cloud migration modal transfers everything to your new Supabase profile.
@@ -78,6 +80,41 @@
   - Anti-cheat audit feed with one-click verification and user banning controls.
 - **📱 Fully Responsive & PWA-Ready**: Optimized for touchscreens, mobile safari, tablets, laptops, and ultra-wide desktop monitors.
 - **🎨 Neo-Brutalist Tech Theme**: Dark obsidian background (`#0b0f19`), warm electric amber (`#f97316`), emerald green (`#22c55e`), and crimson red (`#ef4444`) with high-contrast `JetBrains Mono` and `Inter` typography.
+
+---
+
+## ⚔️ 2-Player Pass & Play Duel
+
+Number Hunt includes an offline **2-Player Pass & Play Memory Duel** (`/multiplayer`) for competing with friends and family on a single shared device:
+
+```mermaid
+flowchart TD
+    S["Lobby Setup<br/>Custom Names · Level 1–16"] --> C["Countdown<br/>3 · 2 · 1 · GO Player 1!"]
+    C --> T1["Player 1 Turn<br/>Target: 1, 2, 3..."]
+    T1 -- "Correct Taps" --> T1
+    T1 -- "Wrong Tap!" --> M1["❌ Mistake! Tiles Hide<br/>Device Passed to Player 2"]
+    M1 --> T2["Player 2 Turn<br/>Uses Memory: 1, 2, 3 ➔ 4, 5..."]
+    T2 -- "Correct Taps" --> T2
+    T2 -- "Wrong Tap!" --> M2["❌ Mistake! Tiles Hide<br/>Device Passed back to Player 1"]
+    M2 --> T1
+    T1 -- "Finds Final Number" --> W1["👑 Player 1 Wins Duel!"]
+    T2 -- "Finds Final Number" --> W2["👑 Player 2 Wins Duel!"]
+```
+
+### 🎮 Duel Rules & Flow:
+1. **Player 1 Starts**: Player 1 begins hunting in ascending order: `1, 2, 3...`.
+2. **The Turnover Mistake**: If Player 1 opens `1, 2, 3` but taps an incorrect tile while searching for `4`:
+   - The wrong tile flashes red with a vibration shake penalty.
+   - **All tiles flip face-down** and sequence resets to `1`.
+   - Device is passed to **Player 2**!
+3. **The Memory Counter-Attack**:
+   - Player 2 watched Player 1's turn and memorized where `1, 2, 3` (and any wrong cards) were located!
+   - Player 2 quickly taps `1, 2, 3` from memory, then searches for `4, 5, 6...`
+   - If Player 2 slips up on `6`, tiles hide again and turn passes back to Player 1!
+4. **Victory Condition**:
+   - The first player to conquer the entire board by finding all numbers to the end wins the match! 🏆
+   - Includes post-game head-to-head match stats (Best Streak, Total Mistakes, Turns Taken).
+   - Play again options: **Rematch (Same Board)** for revenge on the same layout, or **Rematch (New Board)** for a fresh challenge.
 
 ---
 

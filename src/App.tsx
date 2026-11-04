@@ -9,6 +9,7 @@ import { Game } from './pages/Game';
 import { Result } from './pages/Result';
 import { Leaderboard } from './pages/Leaderboard';
 import { DailyChallenge } from './pages/DailyChallenge';
+import { Multiplayer } from './pages/Multiplayer';
 import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
@@ -40,6 +41,7 @@ export function App() {
           <Route path="/"            element={<Home />} />
           <Route path="/levels"      element={<LevelSelect />} />
           <Route path="/game"        element={<Game />} />
+          <Route path="/multiplayer" element={<Multiplayer />} />
           <Route path="/result"      element={<Result />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/daily"       element={<DailyChallenge />} />
