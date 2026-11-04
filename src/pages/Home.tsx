@@ -59,10 +59,24 @@ export function Home() {
               ▶ PLAY SOLO
             </Button>
           </Link>
-          <Link to="/multiplayer" className="w-full" tabIndex={-1}>
-            <Button variant="secondary" size="md" fullWidth id="multiplayer-duel-btn">
-              ⚔️ 2-PLAYER PASS & PLAY DUEL
-            </Button>
+          <Link to="/online" className="w-full" tabIndex={-1}>
+            <button
+              type="button"
+              id="online-duo-btn"
+              className="w-full h-14 px-8 rounded-xl font-bold text-base tracking-wide flex items-center justify-center gap-2.5 bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-md active:scale-95 transition-all duration-150 cursor-pointer"
+            >
+              <span className="text-xl">🌐</span>
+              <span>ONLINE DUO</span>
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-white/25 text-white tracking-wider ml-1">
+                1v1 LIVE
+              </span>
+            </button>
+          </Link>
+          <Link to="/multiplayer" className="w-full text-center mt-0.5" tabIndex={-1}>
+            <span className="text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-accent)] transition-colors inline-flex items-center gap-1.5 py-1">
+              <span>📱</span>
+              <span>Pass & Play on Same Device →</span>
+            </span>
           </Link>
         </div>
       </section>
