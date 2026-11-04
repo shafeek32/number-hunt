@@ -166,6 +166,14 @@ describe('Admin Analytics & Metrics (Section 4)', () => {
     expect(metrics.totalValidScores).toBe(4);
     // Games completed today: 4
     expect(metrics.gamesCompletedToday).toBe(4);
+    // Game mode metrics
+    expect(metrics.soloGamesCount).toBe(4);
+    expect(metrics.dailyGamesCount).toBe(0);
+    expect(metrics.multiplayerGamesCount).toBe(0);
+    expect(metrics.onlineDuelGamesCount).toBe(0);
+    // Level duel eligibility
+    expect(metrics.levelActivity.find((l) => l.levelId === 8)?.isDuelEligible).toBe(true);
+    expect(metrics.levelActivity.find((l) => l.levelId === 7)?.isDuelEligible).toBe(false);
   });
 
   it('throws an informative error if a query fails instead of silently returning 0', async () => {

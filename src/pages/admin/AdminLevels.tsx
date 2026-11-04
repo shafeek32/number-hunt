@@ -66,8 +66,8 @@ export function AdminLevels() {
         </div>
       </div>
 
-      {/* ── DIFFICULTY & RETENTION FUNNEL OVERVIEW ────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* ── DIFFICULTY, RETENTION & DUEL FUNNEL OVERVIEW ──────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
           <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Funnel Survival (L1 → L16)</div>
           <div className="flex items-baseline gap-2">
@@ -108,6 +108,19 @@ export function AdminLevels() {
             Time scales smoothly with grid size and number density from novice to extreme challenge.
           </p>
         </div>
+
+        <div className="p-4 rounded-xl bg-slate-900 border border-cyan-800/40 space-y-2">
+          <div className="text-xs text-cyan-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+            <span>⚔️</span> Duel Gateway (Level 8+)
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black text-cyan-300 font-mono">9 Levels</span>
+            <span className="text-xs text-slate-400">Levels 8 to 16</span>
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Memory duel arena starts at Level 8 (12 numbers). Lower levels remain reserved for solo training.
+          </p>
+        </div>
       </div>
 
       {/* ── 16 LEVELS TABLE ──────────────────────────────────────────────── */}
@@ -119,6 +132,7 @@ export function AdminLevels() {
                 <th className="px-4 py-3">Level</th>
                 <th className="px-4 py-3">Difficulty</th>
                 <th className="px-4 py-3 text-center">Numbers</th>
+                <th className="px-4 py-3">Duel Support</th>
                 <th className="px-4 py-3 text-right">Total Plays</th>
                 <th className="px-4 py-3 text-right">Completed</th>
                 <th className="px-4 py-3 w-48">Completion Rate</th>
@@ -131,7 +145,7 @@ export function AdminLevels() {
             <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-slate-500">
                     <span className="inline-block animate-spin mr-2">◷</span> Loading level metrics...
                   </td>
                 </tr>
@@ -159,6 +173,19 @@ export function AdminLevels() {
                       {/* Numbers */}
                       <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-bold text-amber-400">
                         {lvl.numberCount}
+                      </td>
+
+                      {/* Duel Support */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {lvl.levelId >= 8 ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950/50 border border-amber-800/50 text-amber-400 flex items-center gap-1 w-fit">
+                            <span>⚔️</span> Duel Mode
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            Solo Only
+                          </span>
+                        )}
                       </td>
 
                       {/* Total Plays */}

@@ -35,6 +35,7 @@ export interface AdminLevelActivity {
   avgTimeMs: number;
   avgScore: number;
   dropoffPct: number; // drop-off percentage from previous level
+  isDuelEligible?: boolean; // True for Level 8 onwards (12-20 numbers)
 }
 
 export interface ActivityTimePoint {
@@ -66,6 +67,10 @@ export interface DashboardMetrics {
   totalValidScores: number; // unflagged scores
   registeredGamesCount: number; // games played by registered users in period
   guestGamesCount: number; // games played by guests in period
+  soloGamesCount: number; // Solo level runs in period
+  dailyGamesCount: number; // Daily challenge runs in period
+  multiplayerGamesCount: number; // Local 2-player pass & play duel games
+  onlineDuelGamesCount: number; // Realtime online multiplayer duel games
   completionRate: number; // percentage
   averageScore: number;
   averageTimeMs: number;
@@ -150,6 +155,16 @@ export interface AdminGameItem {
   isVerified: boolean;
   verifiedAt?: string | null;
   isBannedPlayer?: boolean;
+  roomCode?: string;
+}
+
+export interface AdminGameModeStat {
+  mode: 'standard' | 'daily' | 'multiplayer' | 'online_duel';
+  label: string;
+  icon: string;
+  count: number;
+  pct: number;
+  color: string;
 }
 
 export interface AdminAchievementStat {

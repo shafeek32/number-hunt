@@ -6,7 +6,16 @@ export function AdminSettings() {
   const [admins, setAdmins] = useState<AdminRoleItem[]>([]);
   const [bans, setBans] = useState<BannedUser[]>([]);
   const [timeLimits, setTimeLimits] = useState<LevelTimeLimitItem[]>([]);
-  const [health, setHealth] = useState<{ supabaseConnected: boolean; databaseLatencyMs: number; projectRef: string } | null>(null);
+  const [health, setHealth] = useState<{
+    supabaseConnected: boolean;
+    databaseLatencyMs: number;
+    projectRef: string;
+    realtimeConnected?: boolean;
+    realtimeProtocol?: string;
+    duelMinLevel?: number;
+    refreshRecoveryProtocol?: string;
+    guestPersistenceActive?: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Forms state
@@ -114,7 +123,7 @@ export function AdminSettings() {
         </div>
 
         {health && (
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <span
               className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 font-semibold ${
                 health.supabaseConnected
@@ -124,6 +133,10 @@ export function AdminSettings() {
             >
               <span className={`w-2 h-2 rounded-full ${health.supabaseConnected ? 'bg-emerald-400' : 'bg-rose-400'}`} />
               {health.supabaseConnected ? 'Supabase Live' : 'Offline / Standalone'}
+            </span>
+            <span className="px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-800/40 text-cyan-300 font-mono flex items-center gap-1.5 font-bold">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              Realtime WebSockets
             </span>
             <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-slate-300">
               Ping: <strong className="text-white">{health.databaseLatencyMs}ms</strong>
@@ -151,6 +164,60 @@ export function AdminSettings() {
         </div>
       ) : (
         <>
+          {/* ── SECTION 0: MULTIPLAYER & REALTIME INFRASTRUCTURE ───────────── */}
+          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-base font-black text-white flex items-center gap-2">
+                  <span>🌐</span> Multiplayer & Realtime Infrastructure
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Realtime WebSockets, presence tracking, duel rules, and session refresh recovery telemetry.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-800/40 text-cyan-300 font-mono text-xs flex items-center gap-1.5 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  Realtime Active
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">WebSocket Protocol</div>
+                <div className="text-xs font-mono font-bold text-white flex items-center gap-1.5 pt-0.5">
+                  <span className="text-cyan-400">⚡</span> Supabase Realtime v2
+                </div>
+                <div className="text-[10px] text-slate-500">Broadcast events & Presence sync</div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Duel Minimum Level</div>
+                <div className="text-xs font-mono font-bold text-amber-400 flex items-center gap-1.5 pt-0.5">
+                  <span>⚔️</span> Level {health?.duelMinLevel ?? 8} Onwards
+                </div>
+                <div className="text-[10px] text-slate-500">12 - 20 memory tiles with turn resets</div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Refresh Recovery</div>
+                <div className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 pt-0.5">
+                  <span>🛡️</span> Keyed SessionStorage
+                </div>
+                <div className="text-[10px] text-slate-500">Host/Guest preserved across page reloads</div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Guest Telemetry</div>
+                <div className="text-xs font-mono font-bold text-purple-400 flex items-center gap-1.5 pt-0.5">
+                  <span>👤</span> Guest Persistence
+                </div>
+                <div className="text-[10px] text-slate-500">Device ID hashed submissions</div>
+              </div>
+            </div>
+          </div>
+
           {/* ── SECTION 1: ADMIN ROLES ─────────────────────────────────────── */}
           <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">

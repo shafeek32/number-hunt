@@ -10,6 +10,14 @@ interface DeepDiveData {
   accuracyBuckets: { label: string; count: number; pct: number }[];
   mistakeBuckets: { label: string; count: number; pct: number }[];
   levelFunnel: { level: number; dropoffPct: number; activePct: number }[];
+  gameModeBreakdown: {
+    mode: string;
+    label: string;
+    icon?: string;
+    count: number;
+    pct: number;
+    color: string;
+  }[];
 }
 
 export function AdminAnalytics() {
@@ -251,6 +259,49 @@ export function AdminAnalytics() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* ── GAME MODES & MULTIPLAYER TELEMETRY ──────────────────────────── */}
+          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <span>🎮</span> Game Modes & Multiplayer Engagement Distribution
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Breakdown across Solo Progression, Realtime Online Duels, 2-Player Pass & Play, and Daily Challenges.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-cyan-400 font-mono bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span>WebSockets Realtime Active</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              {deepDive.gameModeBreakdown.map((item) => (
+                <div key={item.mode} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                      <span>{item.icon || '🎮'}</span> {item.label}
+                    </span>
+                    <span className="font-mono font-bold text-white">{item.pct}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-900 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${item.pct}%`,
+                        backgroundColor: item.color,
+                      }}
+                    />
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-400">
+                    <strong className="text-white">{item.count.toLocaleString()}</strong> completed matches
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

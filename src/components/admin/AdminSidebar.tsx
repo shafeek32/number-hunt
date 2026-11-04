@@ -71,15 +71,36 @@ export function AdminSidebar({ onCloseMobile }: Props) {
         </ul>
       </nav>
 
-      {/* Bottom Actions */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/50">
+      {/* Quick Launch Game Modes */}
+      <div className="p-3 border-t border-slate-800 bg-slate-950/80 space-y-1.5">
+        <div className="text-[0.62rem] font-extrabold text-slate-500 uppercase tracking-widest px-1">
+          Quick Launch
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <Link
+            to="/online"
+            onClick={onCloseMobile}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold text-cyan-300 hover:text-white bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/40 transition-colors"
+          >
+            <span>🌐</span>
+            <span>Online Duel</span>
+          </Link>
+          <Link
+            to="/multiplayer"
+            onClick={onCloseMobile}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold text-amber-300 hover:text-white bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/40 transition-colors"
+          >
+            <span>⚔️</span>
+            <span>2P Duel</span>
+          </Link>
+        </div>
         <Link
           to="/levels"
           onClick={onCloseMobile}
-          className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-colors"
+          className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-lg text-xs font-bold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-colors"
         >
           <span>🎮</span>
-          <span>Back to Game</span>
+          <span>Solo Levels</span>
         </Link>
       </div>
     </aside>

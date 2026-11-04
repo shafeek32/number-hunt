@@ -213,6 +213,84 @@ export function AdminDashboard() {
             />
           </div>
 
+          {/* ── GAME MODES TELEMETRY & MULTIPLAYER SUITE ────────────────── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-800/40 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-blue-300 flex items-center gap-1.5">
+                  <span>🎯</span> Solo Levels
+                </span>
+                <span className="text-[10px] font-mono font-bold text-slate-400">L1-16</span>
+              </div>
+              <div className="text-2xl font-black font-mono text-white pt-1">
+                {metrics.soloGamesCount.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                <span>Standard runs</span>
+                <Link to="/levels" className="text-blue-400 hover:text-blue-300 font-bold">
+                  Play →
+                </Link>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/40 to-slate-900 border border-cyan-800/40 space-y-1 relative overflow-hidden">
+              <div className="absolute top-2 right-2 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-[9px] font-bold text-cyan-400 font-mono">LIVE</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                  <span>🌐</span> Online Duel
+                </span>
+              </div>
+              <div className="text-2xl font-black font-mono text-white pt-1">
+                {metrics.onlineDuelGamesCount.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                <span>Realtime WebSockets</span>
+                <Link to="/online" className="text-cyan-400 hover:text-cyan-300 font-bold">
+                  Lobby →
+                </Link>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 to-slate-900 border border-amber-800/40 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>⚔️</span> 2-Player Duel
+                </span>
+                <span className="text-[10px] font-mono font-bold text-amber-400/80">L8-16</span>
+              </div>
+              <div className="text-2xl font-black font-mono text-white pt-1">
+                {metrics.multiplayerGamesCount.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                <span>Pass & Play memory</span>
+                <Link to="/multiplayer" className="text-amber-400 hover:text-amber-300 font-bold">
+                  Duel →
+                </Link>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-800/40 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                  <span>🔥</span> Daily Challenge
+                </span>
+                <span className="text-[10px] font-mono font-bold text-emerald-400/80">24H</span>
+              </div>
+              <div className="text-2xl font-black font-mono text-white pt-1">
+                {metrics.dailyGamesCount.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                <span>Global puzzle</span>
+                <Link to="/daily" className="text-emerald-400 hover:text-emerald-300 font-bold">
+                  View →
+                </Link>
+              </div>
+            </div>
+          </div>
+
           {/* ── CHARTS (SECTIONS 6 & 7) ─────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <PlayerActivityChart

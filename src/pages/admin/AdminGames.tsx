@@ -36,7 +36,7 @@ export function AdminGames() {
   // Filters & Pagination
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState<number | 'all'>('all');
-  const [modeFilter, setModeFilter] = useState<'all' | 'levels' | 'daily'>('all');
+  const [modeFilter, setModeFilter] = useState<'all' | 'levels' | 'daily' | 'multiplayer' | 'online_duel'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'flagged' | 'verified' | 'clean'>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -222,8 +222,10 @@ export function AdminGames() {
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
             >
               <option value="all">All Modes</option>
-              <option value="levels">Standard Levels</option>
-              <option value="daily">Daily Challenge</option>
+              <option value="levels">🎯 Standard Solo Levels</option>
+              <option value="online_duel">🌐 Online Multiplayer Duel</option>
+              <option value="multiplayer">⚔️ 2-Player Pass & Play</option>
+              <option value="daily">🔥 Daily Challenge</option>
             </select>
           </div>
 
@@ -358,16 +360,28 @@ export function AdminGames() {
 
                       {/* Level / Mode */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="px-2 py-0.5 rounded font-bold font-mono text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-400">
                             L{g.levelId}
                           </span>
                           <span className="text-[11px] text-slate-400">
-                            {g.numberCount} nums
+                            {g.numberCount}n
                           </span>
-                          {g.isDaily && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] bg-red-950/60 border border-red-800 text-red-300">
-                              Daily
+                          {g.gameMode === 'online_duel' ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-cyan-950/60 border border-cyan-800 text-cyan-300 font-bold flex items-center gap-1">
+                              <span>🌐</span> {g.roomCode ? `${g.roomCode}` : 'Online Duel'}
+                            </span>
+                          ) : g.gameMode === 'multiplayer' ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-950/60 border border-amber-800 text-amber-300 font-bold flex items-center gap-1">
+                              <span>⚔️</span> 2P Duel
+                            </span>
+                          ) : g.isDaily ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-950/60 border border-emerald-800 text-emerald-300 font-bold flex items-center gap-1">
+                              <span>🔥</span> Daily
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-400 font-medium">
+                              Solo
                             </span>
                           )}
                         </div>

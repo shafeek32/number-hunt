@@ -22,6 +22,7 @@ import type {
   AdminAchievementStat,
   AdminRoleItem,
   LevelTimeLimitItem,
+  AdminGameModeStat,
   ActivityTimePoint,
   GamesTimePoint,
 } from '../types/admin';
@@ -37,6 +38,7 @@ export type {
   AdminAchievementStat,
   AdminRoleItem,
   LevelTimeLimitItem,
+  AdminGameModeStat,
 };
 
 export interface BannedUser {
@@ -172,7 +174,7 @@ export const adminService = {
           .from('games')
           .select(`
             id, user_id, guest_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
-            completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
+            game_mode, completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
             profiles!user_id (username, display_name, avatar)
           `)
           .gte('completed_at', startIso)
@@ -223,6 +225,14 @@ export const adminService = {
       // Registered vs Guest breakdown in current period
       const registeredGamesCount = games.filter((g) => g.user_id !== null).length;
       const guestGamesCount = games.filter((g) => g.user_id === null).length;
+
+      // Game Modes Breakdown in current period (Solo Levels, Daily, 2-Player Pass & Play, Online Realtime Duel)
+      const soloGamesCount = games.filter(
+        (g: any) => !g.game_mode || g.game_mode === 'standard' || g.game_mode === 'practice'
+      ).length;
+      const dailyGamesCount = games.filter((g: any) => g.game_mode === 'daily').length;
+      const multiplayerGamesCount = games.filter((g: any) => g.game_mode === 'multiplayer').length;
+      const onlineDuelGamesCount = games.filter((g: any) => g.game_mode === 'online_duel').length;
 
       // Active unique players in period: registered user_id + guest guest_id
       const activePlayerKeys = new Set(
@@ -393,6 +403,7 @@ export const adminService = {
           avgTimeMs: avgT,
           avgScore: avgS,
           dropoffPct: dropoff,
+          isDuelEligible: i >= 8, // Levels 8-16 memory duel mode
         });
       }
 
@@ -400,17 +411,19 @@ export const adminService = {
         const prof = g.profiles as { username?: string; display_name?: string; avatar?: string } | null;
         const isGuest = !g.user_id;
         const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
+        const gameMode = (g as any).game_mode || 'standard';
         return {
           id: g.id,
           userId: g.user_id,
           guestId: g.guest_id,
           isGuest,
+          gameMode,
           username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
           displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
           avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
           levelId: g.level_id,
           numberCount: g.number_count,
-          isDaily: false,
+          isDaily: gameMode === 'daily',
           score: g.score,
           timeMs: g.time_ms,
           mistakes: g.mistakes,
@@ -441,6 +454,10 @@ export const adminService = {
         totalValidScores,
         registeredGamesCount,
         guestGamesCount,
+        soloGamesCount,
+        dailyGamesCount,
+        multiplayerGamesCount,
+        onlineDuelGamesCount,
         completionRate: Number(completionRate.toFixed(1)),
         averageScore,
         averageTimeMs,
@@ -821,7 +838,7 @@ export const adminService = {
   async getGamesList(options: {
     search?: string;
     levelId?: number | 'all';
-    mode?: 'all' | 'levels' | 'daily';
+    mode?: 'all' | 'levels' | 'daily' | 'multiplayer' | 'online_duel';
     status?: 'all' | 'flagged' | 'verified' | 'clean';
     page?: number;
     pageSize?: number;
@@ -831,7 +848,7 @@ export const adminService = {
     const {
       search = '',
       levelId = 'all',
-      mode: _mode = 'all',
+      mode = 'all',
       status = 'all',
       page = 1,
       pageSize = 25,
@@ -848,7 +865,7 @@ export const adminService = {
         .from('games')
         .select(`
           id, user_id, guest_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
-          completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
+          game_mode, completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
           profiles!user_id (username, display_name, avatar)
         `, { count: 'exact' });
 
@@ -884,17 +901,19 @@ export const adminService = {
         const prof = g.profiles as { username?: string; display_name?: string; avatar?: string } | null;
         const isGuest = !g.user_id;
         const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
+        const gameMode = (g as any).game_mode || 'standard';
         return {
           id: g.id,
           userId: g.user_id,
           guestId: g.guest_id,
           isGuest,
+          gameMode,
           username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
           displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
           avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
           levelId: g.level_id,
           numberCount: g.number_count,
-          isDaily: false,
+          isDaily: gameMode === 'daily',
           score: g.score,
           timeMs: g.time_ms,
           mistakes: g.mistakes,
@@ -909,11 +928,23 @@ export const adminService = {
         };
       });
 
-      // Filter by search in-memory if query was provided
+      // Filter by search and mode in-memory
       let filtered = games;
+      if (mode && mode !== 'all') {
+        if (mode === 'levels') {
+          filtered = filtered.filter((g) => g.gameMode === 'standard' || !g.gameMode || g.gameMode === 'practice');
+        } else if (mode === 'daily') {
+          filtered = filtered.filter((g) => g.gameMode === 'daily');
+        } else if (mode === 'multiplayer') {
+          filtered = filtered.filter((g) => g.gameMode === 'multiplayer');
+        } else if (mode === 'online_duel') {
+          filtered = filtered.filter((g) => g.gameMode === 'online_duel');
+        }
+      }
+
       if (search.trim()) {
         const s = search.toLowerCase();
-        filtered = games.filter(
+        filtered = filtered.filter(
           (g) =>
             g.username.toLowerCase().includes(s) ||
             g.displayName.toLowerCase().includes(s) ||
@@ -1055,6 +1086,7 @@ export const adminService = {
     accuracyBuckets: { label: string; count: number; pct: number }[];
     mistakeBuckets: { label: string; count: number; pct: number }[];
     levelFunnel: { level: number; dropoffPct: number; activePct: number }[];
+    gameModeBreakdown: AdminGameModeStat[];
   }> {
     const metrics = await this.getDashboardMetrics(filter);
 
@@ -1084,7 +1116,48 @@ export const adminService = {
       activePct: lvl.completionRate,
     }));
 
-    return { hourlyHeatmap, accuracyBuckets, mistakeBuckets, levelFunnel };
+    const totalModes = Math.max(1, metrics.gamesCompletedToday || 1);
+    const soloPct = Number(((metrics.soloGamesCount / totalModes) * 100).toFixed(1));
+    const onlineDuelPct = Number(((metrics.onlineDuelGamesCount / totalModes) * 100).toFixed(1));
+    const multiplayerPct = Number(((metrics.multiplayerGamesCount / totalModes) * 100).toFixed(1));
+    const dailyPct = Number(((metrics.dailyGamesCount / totalModes) * 100).toFixed(1));
+
+    const gameModeBreakdown: AdminGameModeStat[] = [
+      {
+        mode: 'standard',
+        label: 'Solo Levels (1-16)',
+        icon: '🎯',
+        count: metrics.soloGamesCount,
+        pct: soloPct,
+        color: '#3b82f6',
+      },
+      {
+        mode: 'online_duel',
+        label: 'Online Realtime Duel',
+        icon: '🌐',
+        count: metrics.onlineDuelGamesCount,
+        pct: onlineDuelPct,
+        color: '#06b6d4',
+      },
+      {
+        mode: 'multiplayer',
+        label: '2-Player Pass & Play',
+        icon: '⚔️',
+        count: metrics.multiplayerGamesCount,
+        pct: multiplayerPct,
+        color: '#f59e0b',
+      },
+      {
+        mode: 'daily',
+        label: 'Daily Challenges',
+        icon: '🔥',
+        count: metrics.dailyGamesCount,
+        pct: dailyPct,
+        color: '#10b981',
+      },
+    ];
+
+    return { hourlyHeatmap, accuracyBuckets, mistakeBuckets, levelFunnel, gameModeBreakdown };
   },
 
   /**
@@ -1098,6 +1171,11 @@ export const adminService = {
       supabaseConnected: boolean;
       databaseLatencyMs: number;
       projectRef: string;
+      realtimeConnected: boolean;
+      realtimeProtocol: string;
+      duelMinLevel: number;
+      refreshRecoveryProtocol: string;
+      guestPersistenceActive: boolean;
     };
   }> {
     const t0 = performance.now();
@@ -1168,6 +1246,11 @@ export const adminService = {
         supabaseConnected: isConnected,
         databaseLatencyMs: latency,
         projectRef: import.meta.env.VITE_SUPABASE_URL || 'offline',
+        realtimeConnected: isConnected,
+        realtimeProtocol: 'Supabase Realtime v2 (WebSockets / Broadcast & Presence)',
+        duelMinLevel: 8,
+        refreshRecoveryProtocol: 'SessionStorage Keyed Room Recovery',
+        guestPersistenceActive: true,
       },
     };
   },
@@ -1315,12 +1398,19 @@ function getMockDashboardMetrics(filter: DateRangeFilter): DashboardMetrics {
       avgTimeMs: avgT,
       avgScore: avgS,
       dropoffPct: dropoff,
+      isDuelEligible: l.id >= 8,
     };
   });
 
   const guestPlayersCount = guestTracker.getGuestPlayersCount();
   const guestGamesPlayed = guestTracker.getGuestGamesCount();
   const activeGuestsToday = guestTracker.getActiveGuestsToday();
+
+  const totalCompletedMock = 172 + guestGamesPlayed;
+  const onlineDuelGamesCount = Math.round(totalCompletedMock * 0.24);
+  const multiplayerGamesCount = Math.round(totalCompletedMock * 0.18);
+  const dailyGamesCount = Math.round(totalCompletedMock * 0.16);
+  const soloGamesCount = Math.max(0, totalCompletedMock - onlineDuelGamesCount - multiplayerGamesCount - dailyGamesCount);
 
   return {
     totalUsers: 142,
@@ -1333,11 +1423,15 @@ function getMockDashboardMetrics(filter: DateRangeFilter): DashboardMetrics {
     newUsersToday: 12,
     activePlayersToday: 38 + activeGuestsToday,
     gamesStartedToday: 184 + guestGamesPlayed,
-    gamesCompletedToday: 172 + guestGamesPlayed,
+    gamesCompletedToday: totalCompletedMock,
     gamesCompletedThisWeek: 480,
-    totalValidScores: 172 + guestGamesPlayed,
+    totalValidScores: totalCompletedMock,
     registeredGamesCount: 172,
     guestGamesCount: guestGamesPlayed,
+    soloGamesCount,
+    dailyGamesCount,
+    multiplayerGamesCount,
+    onlineDuelGamesCount,
     completionRate: 93.5,
     averageScore: 98420,
     averageTimeMs: 7850,
@@ -1493,8 +1587,8 @@ function getMockUserDetail(userId: string): AdminUserDetail {
   };
 }
 
-function getMockGamesList(_options: any): { games: AdminGameItem[]; totalCount: number } {
-  const games: AdminGameItem[] = [
+function getMockGamesList(options: any = {}): { games: AdminGameItem[]; totalCount: number } {
+  const allGames: AdminGameItem[] = [
     {
       id: 'g-101',
       userId: 'b332418b-2e97-4a90-84c5-fc4660c18841',
@@ -1503,6 +1597,8 @@ function getMockGamesList(_options: any): { games: AdminGameItem[]; totalCount: 
       avatar: '⚡',
       levelId: 8,
       numberCount: 12,
+      gameMode: 'online_duel',
+      roomCode: 'DUEL-8942',
       isDaily: false,
       score: 148170,
       timeMs: 7200,
@@ -1523,6 +1619,7 @@ function getMockGamesList(_options: any): { games: AdminGameItem[]; totalCount: 
       avatar: '🎯',
       levelId: 16,
       numberCount: 20,
+      gameMode: 'standard',
       isDaily: false,
       score: 201420,
       timeMs: 8420,
@@ -1543,6 +1640,7 @@ function getMockGamesList(_options: any): { games: AdminGameItem[]; totalCount: 
       avatar: '👑',
       levelId: 7,
       numberCount: 11,
+      gameMode: 'daily',
       isDaily: true,
       score: 112000,
       timeMs: 6400,
@@ -1555,9 +1653,79 @@ function getMockGamesList(_options: any): { games: AdminGameItem[]; totalCount: 
       flagReason: null,
       isVerified: false,
     },
+    {
+      id: 'g-104',
+      userId: null,
+      guestId: 'guest_4f9a',
+      isGuest: true,
+      username: 'guest_4f9a',
+      displayName: 'Guest (4f9a)',
+      avatar: '👤',
+      levelId: 10,
+      numberCount: 14,
+      gameMode: 'multiplayer',
+      isDaily: false,
+      score: 132400,
+      timeMs: 8900,
+      mistakes: 2,
+      accuracy: 87.5,
+      stars: 2,
+      completedAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+      createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+      isFlagged: false,
+      flagReason: null,
+      isVerified: false,
+    },
+    {
+      id: 'g-105',
+      userId: null,
+      guestId: 'guest_88b1',
+      isGuest: true,
+      username: 'guest_88b1',
+      displayName: 'Guest (88b1)',
+      avatar: '👤',
+      levelId: 9,
+      numberCount: 13,
+      gameMode: 'online_duel',
+      roomCode: 'DUEL-3105',
+      isDaily: false,
+      score: 128900,
+      timeMs: 9100,
+      mistakes: 0,
+      accuracy: 100,
+      stars: 3,
+      completedAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+      createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+      isFlagged: false,
+      flagReason: null,
+      isVerified: true,
+    },
   ];
 
-  return { games, totalCount: games.length };
+  let filtered = allGames;
+  if (options?.mode && options.mode !== 'all') {
+    if (options.mode === 'levels') {
+      filtered = filtered.filter((g) => g.gameMode === 'standard' || !g.gameMode || g.gameMode === 'practice');
+    } else if (options.mode === 'daily') {
+      filtered = filtered.filter((g) => g.gameMode === 'daily');
+    } else if (options.mode === 'multiplayer') {
+      filtered = filtered.filter((g) => g.gameMode === 'multiplayer');
+    } else if (options.mode === 'online_duel') {
+      filtered = filtered.filter((g) => g.gameMode === 'online_duel');
+    }
+  }
+
+  if (options?.search?.trim()) {
+    const s = options.search.toLowerCase();
+    filtered = filtered.filter(
+      (g) =>
+        g.username.toLowerCase().includes(s) ||
+        g.displayName.toLowerCase().includes(s) ||
+        (g.roomCode && g.roomCode.toLowerCase().includes(s))
+    );
+  }
+
+  return { games: filtered, totalCount: filtered.length };
 }
 
 function getMockAchievementsAnalytics(): AdminAchievementStat[] {
