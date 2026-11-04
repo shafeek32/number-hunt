@@ -8,7 +8,11 @@ import { Countdown } from '../components/game/Countdown';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
 import { LEVELS, getLevelById } from '../data/levels';
-import { useOnlineDuel } from '../hooks/useOnlineDuel';
+import {
+  useOnlineDuel,
+  clearStoredDuelSession,
+  loadStoredDuelSession,
+} from '../hooks/useOnlineDuel';
 import { isSupabaseConfigured } from '../lib/supabase';
 import type { OnlineRole } from '../types/onlineDuel';
 
@@ -63,6 +67,7 @@ function OnlineLobby() {
   const handleCreateRoom = () => {
     const newCode = generateRoomCode();
     const name = playerName.trim() || 'Player 1';
+    clearStoredDuelSession(newCode);
     navigate(
       `/online/${newCode}?role=host&name=${encodeURIComponent(name)}&level=${selectedLevelId}`
     );
@@ -72,6 +77,7 @@ function OnlineLobby() {
     const clean = inputCode.trim().toUpperCase();
     if (!clean) return;
     const name = playerName.trim() || 'Player 2';
+    clearStoredDuelSession(clean);
     navigate(`/online/${clean}?role=guest&name=${encodeURIComponent(name)}`);
   };
 
@@ -221,10 +227,14 @@ interface OnlineRoomProps {
 }
 
 function OnlineRoom({ roomCode }: OnlineRoomProps) {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const explicitRole = (searchParams.get('role') as OnlineRole) || 'guest';
-  const initialName = searchParams.get('name') || '';
-  const initialLevel = Number(searchParams.get('level')) || 8;
+  const storedSession = loadStoredDuelSession(roomCode);
+  const explicitRole =
+    (searchParams.get('role') as OnlineRole) || storedSession?.role || 'guest';
+  const initialName = searchParams.get('name') || storedSession?.name || '';
+  const initialLevel =
+    Number(searchParams.get('level')) || storedSession?.levelId || 8;
 
   const [selectedLevelId, setSelectedLevelId] = useState<number>(initialLevel);
   const [linkCopied, setLinkCopied] = useState<boolean>(false);
@@ -240,7 +250,13 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
     rematchSameBoard,
     rematchNewBoard,
     setPlayerName,
+    leaveRoom,
   } = useOnlineDuel(roomCode, explicitRole, initialName);
+
+  const handleLeaveRoom = () => {
+    leaveRoom();
+    navigate('/online');
+  };
 
   const {
     phase,
@@ -307,13 +323,14 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
       <PageContainer maxWidth="max-w-md">
         {/* Navigation */}
         <div className="flex items-center justify-between mb-4 text-xs font-bold text-[var(--color-text-muted)]">
-          <Link
-            to="/online"
-            className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
+          <button
+            type="button"
+            onClick={handleLeaveRoom}
+            className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors cursor-pointer"
           >
             <span>←</span>
             <span>LEAVE ROOM</span>
-          </Link>
+          </button>
           <div className="flex items-center gap-1.5">
             <span
               className={[
@@ -517,13 +534,14 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
     <PageContainer maxWidth="max-w-lg">
       {/* Utility Bar */}
       <div className="flex items-center justify-between mb-3 text-xs font-bold text-[var(--color-text-muted)]">
-        <Link
-          to="/online"
-          className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
+        <button
+          type="button"
+          onClick={handleLeaveRoom}
+          className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors cursor-pointer"
         >
           <span>←</span>
           <span>LEAVE ROOM</span>
-        </Link>
+        </button>
 
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-mono text-xs">
@@ -682,11 +700,9 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
               <Button variant="secondary" size="md" fullWidth onClick={rematchNewBoard}>
                 🎲 REMATCH (New Board)
               </Button>
-              <Link to="/online" className="w-full">
-                <Button variant="ghost" size="sm" fullWidth>
-                  ← Back to Online Lobby
-                </Button>
-              </Link>
+              <Button variant="ghost" size="sm" fullWidth onClick={handleLeaveRoom}>
+                ← Back to Online Lobby
+              </Button>
             </div>
           </div>
         )}

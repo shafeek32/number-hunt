@@ -33,6 +33,26 @@ export interface OnlineDuelState {
   errorMessage: string | null;
 }
 
+export interface OnlineSyncScore {
+  mistakes: number;
+  bestStreak: number;
+  currentStreak: number;
+}
+
+export interface OnlineSyncStatePayload {
+  phase: OnlineDuelPhase;
+  levelId: number;
+  numberCount: number;
+  boardNumbers: number[];
+  targetNumber: number;
+  foundNumbers: number[];
+  activeRole: OnlineRole;
+  turnNumber: number;
+  winnerRole: OnlineRole | null;
+  hostScore: OnlineSyncScore;
+  guestScore: OnlineSyncScore;
+}
+
 export type OnlineDuelEvent =
   | {
       type: 'PLAYER_JOIN';
@@ -70,4 +90,12 @@ export type OnlineDuelEvent =
   | {
       type: 'PLAYER_LEFT';
       role: OnlineRole;
+    }
+  | {
+      type: 'SYNC_STATE';
+      syncState: OnlineSyncStatePayload;
+    }
+  | {
+      type: 'REQUEST_SYNC';
+      fromId: string;
     };
