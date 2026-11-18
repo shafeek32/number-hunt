@@ -412,12 +412,17 @@ export const adminService = {
         const isGuest = !g.user_id;
         const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
         const gameMode = (g as any).game_mode || 'standard';
+        const rawToken = (g as any).client_token || '';
+        const roomCodeMatch = typeof rawToken === 'string' ? rawToken.match(/^duel-([A-Z0-9]+)/i) : null;
+        const roomCode = roomCodeMatch ? roomCodeMatch[1].toUpperCase() : undefined;
+
         return {
           id: g.id,
           userId: g.user_id,
           guestId: g.guest_id,
           isGuest,
           gameMode,
+          roomCode,
           username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
           displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
           avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),
@@ -865,12 +870,24 @@ export const adminService = {
         .from('games')
         .select(`
           id, user_id, guest_id, level_id, number_count, score, time_ms, mistakes, accuracy, stars,
-          game_mode, completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
+          game_mode, client_token, completed_at, created_at, is_flagged, flag_reason, is_verified, verified_at,
           profiles!user_id (username, display_name, avatar)
         `, { count: 'exact' });
 
       if (levelId !== 'all') {
         query = query.eq('level_id', levelId);
+      }
+
+      if (mode && mode !== 'all') {
+        if (mode === 'levels') {
+          query = query.in('game_mode', ['standard', 'practice']);
+        } else if (mode === 'daily') {
+          query = query.eq('game_mode', 'daily');
+        } else if (mode === 'multiplayer') {
+          query = query.eq('game_mode', 'multiplayer');
+        } else if (mode === 'online_duel') {
+          query = query.eq('game_mode', 'online_duel');
+        }
       }
 
       if (status === 'flagged') {
@@ -902,12 +919,17 @@ export const adminService = {
         const isGuest = !g.user_id;
         const guestTag = g.guest_id ? g.guest_id.replace(/^guest_/, '').slice(0, 4) : 'local';
         const gameMode = (g as any).game_mode || 'standard';
+        const rawToken = (g as any).client_token || '';
+        const roomCodeMatch = typeof rawToken === 'string' ? rawToken.match(/^duel-([A-Z0-9]+)/i) : null;
+        const roomCode = roomCodeMatch ? roomCodeMatch[1].toUpperCase() : undefined;
+
         return {
           id: g.id,
           userId: g.user_id,
           guestId: g.guest_id,
           isGuest,
           gameMode,
+          roomCode,
           username: isGuest ? `guest_${guestTag}` : (prof?.username || 'hunter'),
           displayName: isGuest ? `Guest (${guestTag})` : (prof?.display_name || 'Hunter'),
           avatar: isGuest ? '👤' : (prof?.avatar || '⚡'),

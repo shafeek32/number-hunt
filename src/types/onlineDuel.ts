@@ -31,6 +31,8 @@ export interface OnlineDuelState {
   turnNumber: number;
   connectionStatus: 'connecting' | 'connected' | 'error' | 'disconnected';
   errorMessage: string | null;
+  isOpponentLeft?: boolean;
+  opponentLeftMessage?: string | null;
 }
 
 export interface OnlineSyncScore {

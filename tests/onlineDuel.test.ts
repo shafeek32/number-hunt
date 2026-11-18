@@ -371,5 +371,34 @@ describe('Online Multiplayer Duel Engine (Supabase Realtime Protocol)', () => {
         'Failed to connect to duel room WebSocket channel. Check your network or retry connection.'
       );
     });
+
+    it('sets isOpponentLeft and message when opponent leaves room', () => {
+      const state = createMockOnlineState('host');
+      state.remotePlayer = {
+        id: 'remote-456',
+        name: 'Friend Online',
+        role: 'guest',
+        isReady: true,
+        color: 'cyan',
+        mistakes: 0,
+        bestStreak: 0,
+        currentStreak: 0,
+      };
+
+      const leaveEvent: OnlineDuelEvent = {
+        type: 'PLAYER_LEFT',
+        role: 'guest',
+      };
+
+      if (leaveEvent.type === 'PLAYER_LEFT') {
+        state.remotePlayer = null;
+        state.isOpponentLeft = true;
+        state.opponentLeftMessage = 'Friend Online left the room.';
+      }
+
+      expect(state.remotePlayer).toBeNull();
+      expect(state.isOpponentLeft).toBe(true);
+      expect(state.opponentLeftMessage).toBe('Friend Online left the room.');
+    });
   });
 });

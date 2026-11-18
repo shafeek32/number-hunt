@@ -12,7 +12,7 @@ export interface SaveGameParams {
   score: number;
   stars: number;
   clientToken?: string | null;
-  gameMode?: 'standard' | 'daily' | 'practice';
+  gameMode?: 'standard' | 'daily' | 'practice' | 'multiplayer' | 'online_duel' | string;
   completedAt?: string;
 }
 

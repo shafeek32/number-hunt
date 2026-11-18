@@ -3,6 +3,11 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { LEVELS, getLevelById } from '../data/levels';
 import { generateBoard } from '../utils/randomizer';
+import { gameService } from '../services/gameService';
+import { guestTracker, getOrCreateGuestId } from '../utils/guestTracker';
+import { authService } from '../services/authService';
+import { calculateScore, calculateStars } from '../utils/scoring';
+import { calcAccuracy } from '../utils/gameEngine';
 import type {
   OnlineRole,
   OnlineDuelState,
@@ -134,6 +139,8 @@ export function useOnlineDuel(
   const retryCountRef = useRef<number>(0);
   const [retryNonce, setRetryNonce] = useState<number>(0);
   const MAX_AUTO_RETRIES = 3;
+  const matchStartTimeRef = useRef<number | null>(null);
+  const hasRecordedCompletionRef = useRef<boolean>(false);
 
   const defaultLevel = LEVELS.find((l) => l.id === 8) ?? LEVELS[7]; // Level 8 default
 
@@ -366,6 +373,61 @@ export function useOnlineDuel(
     setRetryNonce((n) => n + 1);
   }, []);
 
+  /** Save completed online duel match to Supabase cloud and local telemetry */
+  const recordDuelMatchCompletion = useCallback(
+    (_winnerRole: OnlineRole) => {
+      if (hasRecordedCompletionRef.current) return;
+      hasRecordedCompletionRef.current = true;
+
+      const cur = stateRef.current;
+      const durationMs = Math.max(1500, Date.now() - (matchStartTimeRef.current || Date.now()));
+      const myMistakes = cur.localPlayer.mistakes;
+      const accuracy = calcAccuracy(cur.numberCount, myMistakes);
+      const currentLevel = getLevelById(cur.levelId) ?? defaultLevel;
+      const score = calculateScore(durationMs, myMistakes, currentLevel);
+      const stars = calculateStars(myMistakes, accuracy);
+      const cleanCode = (cur.roomCode || roomCode || 'ROOM').trim().toUpperCase();
+      const clientToken = `duel-${cleanCode}-${cur.role}-${Date.now()}`;
+
+      // 1. Upload to Supabase cloud database
+      authService.getUser().then((user) => {
+        const userId = user?.id || null;
+        const guestId = userId ? null : getOrCreateGuestId();
+
+        gameService
+          .saveGame({
+            userId,
+            guestId,
+            levelId: cur.levelId,
+            numberCount: cur.numberCount,
+            timeMs: durationMs,
+            mistakes: myMistakes,
+            accuracy,
+            score,
+            stars,
+            gameMode: 'online_duel',
+            clientToken,
+            completedAt: new Date().toISOString(),
+          })
+          .catch((err) => {
+            console.warn('[OnlineDuel] Failed to upload duel game to Supabase:', err);
+          });
+      });
+
+      // 2. Track in local guest registry
+      guestTracker.trackGuestGame({
+        levelId: cur.levelId,
+        numberCount: cur.numberCount,
+        timeMs: durationMs,
+        mistakes: myMistakes,
+        accuracy,
+        score,
+        stars,
+      });
+    },
+    [defaultLevel, roomCode]
+  );
+
   // ──────────────────────────────────────────────────────────────────────────
   // SUPABASE REALTIME CHANNEL LIFECYCLE
   // ──────────────────────────────────────────────────────────────────────────
@@ -470,7 +532,18 @@ export function useOnlineDuel(
         if (!disconnectTimerRef.current && stateRef.current.remotePlayer) {
           disconnectTimerRef.current = setTimeout(() => {
             disconnectTimerRef.current = null;
-            setState((prev) => (prev.remotePlayer ? { ...prev, remotePlayer: null } : prev));
+            const wasActive = stateRef.current.phase !== 'lobby';
+            setState((prev) => ({
+              ...prev,
+              remotePlayer: null,
+              isOpponentLeft: wasActive,
+              opponentLeftMessage: wasActive
+                ? `${prev.remotePlayer?.name || 'Opponent'} disconnected.`
+                : null,
+            }));
+            if (wasActive) {
+              clearStoredDuelSession(roomCode);
+            }
           }, 4000);
         }
       }
@@ -605,6 +678,8 @@ export function useOnlineDuel(
         }
 
         case 'HOST_START_GAME': {
+          hasRecordedCompletionRef.current = false;
+          matchStartTimeRef.current = null;
           const lvl = getLevelById(event.levelId) ?? defaultLevel;
           setState((prev) => ({
             ...prev,
@@ -624,6 +699,9 @@ export function useOnlineDuel(
         }
 
         case 'TILE_CLICK_CORRECT': {
+          if (event.isGameWon) {
+            recordDuelMatchCompletion(event.clickedBy);
+          }
           setState((prev) => {
             const nextFound = [...prev.foundNumbers, event.number];
             const isRemote = event.clickedBy !== prev.role;
@@ -682,6 +760,8 @@ export function useOnlineDuel(
         }
 
         case 'REMATCH_START': {
+          hasRecordedCompletionRef.current = false;
+          matchStartTimeRef.current = null;
           const lvl = getLevelById(event.levelId) ?? defaultLevel;
           setState((prev) => ({
             ...prev,
@@ -715,9 +795,12 @@ export function useOnlineDuel(
         }
 
         case 'PLAYER_LEFT': {
+          clearStoredDuelSession(roomCode);
           setState((prev) => ({
             ...prev,
             remotePlayer: null,
+            isOpponentLeft: true,
+            opponentLeftMessage: `${prev.remotePlayer?.name || (event.role === 'host' ? 'Host' : 'Guest')} left the room.`,
           }));
           break;
         }
@@ -776,7 +859,7 @@ export function useOnlineDuel(
         }
       }
     },
-    [defaultLevel, broadcastEvent, createSyncPayload]
+    [defaultLevel, broadcastEvent, createSyncPayload, recordDuelMatchCompletion, roomCode]
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -786,6 +869,8 @@ export function useOnlineDuel(
   /** Host starts the game */
   const startGame = useCallback(
     (chosenLevelId: number = 8) => {
+      hasRecordedCompletionRef.current = false;
+      matchStartTimeRef.current = null;
       const lvl = getLevelById(chosenLevelId) ?? defaultLevel;
       const boardNumbers = generateBoard(lvl.numberCount);
 
@@ -815,6 +900,7 @@ export function useOnlineDuel(
 
   /** Countdown completes, begin playing */
   const startPlaying = useCallback(() => {
+    matchStartTimeRef.current = Date.now();
     setState((prev) => ({
       ...prev,
       phase: 'playing',
@@ -839,6 +925,10 @@ export function useOnlineDuel(
         const nextStreak = current.localPlayer.currentStreak + 1;
         const nextBestStreak = Math.max(current.localPlayer.bestStreak, nextStreak);
         const isGameWon = nextFound.length === current.numberCount;
+
+        if (isGameWon) {
+          recordDuelMatchCompletion(myRole);
+        }
 
         setState((prev) => ({
           ...prev,
@@ -912,7 +1002,7 @@ export function useOnlineDuel(
         });
       }, 750);
     },
-    [broadcastEvent]
+    [broadcastEvent, recordDuelMatchCompletion]
   );
 
   /** Rematch on same board */

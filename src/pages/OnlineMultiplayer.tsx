@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { PageContainer } from '../components/layout/PageContainer';
 import { GameBoard } from '../components/game/GameBoard';
@@ -281,7 +281,20 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
     turnNumber,
     connectionStatus,
     errorMessage,
+    isOpponentLeft,
+    opponentLeftMessage,
   } = state;
+
+  // When opponent leaves, cleanly exit back to /online
+  useEffect(() => {
+    if (isOpponentLeft) {
+      const exitTimer = setTimeout(() => {
+        clearStoredDuelSession(roomCode);
+        navigate('/online');
+      }, 3000);
+      return () => clearTimeout(exitTimer);
+    }
+  }, [isOpponentLeft, navigate, roomCode]);
 
   const currentLevel = getLevelById(levelId) ?? MULTIPLAYER_LEVELS[0];
   const isMyTurn = localPlayer.role === activeRole;
@@ -559,6 +572,32 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
             )}
           </div>
         )}
+
+        {/* Opponent Left Modal / Auto-Exit Notice */}
+        {isOpponentLeft && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+            <Card className="max-w-sm w-full text-center p-6 border-red-500/50 shadow-2xl">
+              <span className="text-4xl block mb-3 animate-bounce">🚪</span>
+              <h2 className="text-xl font-black text-white mb-2">
+                Opponent Left the Room
+              </h2>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+                {opponentLeftMessage || 'Your opponent has exited the room. Returning to lobby...'}
+              </p>
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                onClick={() => {
+                  clearStoredDuelSession(roomCode);
+                  navigate('/online');
+                }}
+              >
+                RETURN TO LOBBY NOW →
+              </Button>
+            </Card>
+          </div>
+        )}
       </PageContainer>
     );
   }
@@ -812,6 +851,32 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
           </GameBoard>
         </div>
       </div>
+
+      {/* Opponent Left Modal / Auto-Exit Notice */}
+      {isOpponentLeft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <Card className="max-w-sm w-full text-center p-6 border-red-500/50 shadow-2xl">
+            <span className="text-4xl block mb-3 animate-bounce">🚪</span>
+            <h2 className="text-xl font-black text-white mb-2">
+              Opponent Left the Room
+            </h2>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+              {opponentLeftMessage || 'Your opponent has exited the room. Returning to lobby...'}
+            </p>
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth
+              onClick={() => {
+                clearStoredDuelSession(roomCode);
+                navigate('/online');
+              }}
+            >
+              RETURN TO LOBBY NOW →
+            </Button>
+          </Card>
+        </div>
+      )}
     </PageContainer>
   );
 }

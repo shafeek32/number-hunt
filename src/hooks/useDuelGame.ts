@@ -2,6 +2,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { DuelGameState } from '../types/multiplayer';
 import { LEVELS, getLevelById } from '../data/levels';
 import { generateBoard } from '../utils/randomizer';
+import { gameService } from '../services/gameService';
+import { guestTracker, getOrCreateGuestId } from '../utils/guestTracker';
+import { authService } from '../services/authService';
+import { calculateScore, calculateStars } from '../utils/scoring';
+import { calcAccuracy } from '../utils/gameEngine';
 
 export function createInitialDuelState(
   levelId: number = 8,
@@ -49,6 +54,7 @@ export function useDuelGame(initialLevelId: number = 8) {
   );
 
   const wrongTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startTimeRef = useRef<number | null>(null);
   const stateRef = useRef(duelState);
   stateRef.current = duelState;
 
@@ -79,6 +85,7 @@ export function useDuelGame(initialLevelId: number = 8) {
 
   /** Start playing after 3-2-1 countdown finishes */
   const startPlaying = useCallback(() => {
+    startTimeRef.current = Date.now();
     setDuelState((prev) => ({
       ...prev,
       phase: 'playing',
@@ -104,6 +111,42 @@ export function useDuelGame(initialLevelId: number = 8) {
 
       if (isFinished) {
         // Player found the last number — Game Won!
+        const durationMs = Math.max(1500, Date.now() - (startTimeRef.current || Date.now()));
+        const accuracy = calcAccuracy(current.level.numberCount, activePlayer.mistakes);
+        const score = calculateScore(durationMs, activePlayer.mistakes, current.level);
+        const stars = calculateStars(activePlayer.mistakes, accuracy);
+
+        authService.getUser().then((user) => {
+          const userId = user?.id || null;
+          const guestId = userId ? null : getOrCreateGuestId();
+          gameService
+            .saveGame({
+              userId,
+              guestId,
+              levelId: current.level.id,
+              numberCount: current.level.numberCount,
+              timeMs: durationMs,
+              mistakes: activePlayer.mistakes,
+              accuracy,
+              score,
+              stars,
+              gameMode: 'multiplayer',
+              clientToken: `passplay-${Date.now()}`,
+              completedAt: new Date().toISOString(),
+            })
+            .catch((err) => console.warn('[useDuelGame] Failed to save multiplayer game:', err));
+        });
+
+        guestTracker.trackGuestGame({
+          levelId: current.level.id,
+          numberCount: current.level.numberCount,
+          timeMs: durationMs,
+          mistakes: activePlayer.mistakes,
+          accuracy,
+          score,
+          stars,
+        });
+
         setDuelState((prev) => ({
           ...prev,
           phase: 'finished',
