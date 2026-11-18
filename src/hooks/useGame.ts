@@ -66,6 +66,9 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
+  // Serialize seeded board into a stable key to prevent re-render reset loops
+  const seededBoardKey = options?.seededBoard ? options.seededBoard.join(',') : '';
+
   // If level or seeded board changes, reset game state
   useEffect(() => {
     resetTimer();
@@ -76,7 +79,7 @@ export function useGame(level: Level, options?: UseGameOptions): UseGameReturn {
       initial.numbers = options.seededBoard;
     }
     setGameState(initial);
-  }, [level.id, options?.seededBoard, resetTimer]);
+  }, [level.id, seededBoardKey, resetTimer]);
 
   // Clean up wrong number timer on unmount
   useEffect(() => {

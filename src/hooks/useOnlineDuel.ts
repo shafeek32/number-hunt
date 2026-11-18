@@ -78,6 +78,43 @@ export function clearStoredDuelSession(roomCode: string): void {
   } catch {}
 }
 
+/** Format informative WebSocket and Realtime errors for user/dev diagnostics */
+export function formatChannelError(status: string, err?: unknown): string {
+  if (status === 'TIMED_OUT') {
+    return 'Connection to duel room timed out. Please check your network connection and retry.';
+  }
+  const detail =
+    err && typeof err === 'object' && 'message' in err
+      ? String((err as { message: unknown }).message)
+      : typeof err === 'string'
+      ? err
+      : '';
+  const lower = detail.toLowerCase();
+  if (
+    lower.includes('unauthorized') ||
+    lower.includes('api key') ||
+    lower.includes('jwt') ||
+    lower.includes('invalid_api_key')
+  ) {
+    return 'Supabase authentication failed. Please check your Supabase API credentials in .env.';
+  }
+  if (
+    lower.includes('paused') ||
+    lower.includes('inactive') ||
+    lower.includes('503') ||
+    lower.includes('1101')
+  ) {
+    return 'Your Supabase project appears to be paused. Open your Supabase Dashboard and click "Restore project" to re-enable online rooms.';
+  }
+  if (lower.includes('rate') || lower.includes('limit')) {
+    return 'Realtime connection rate limit reached. Retrying shortly...';
+  }
+  if (detail) {
+    return `Failed to connect to duel room WebSocket channel: ${detail}`;
+  }
+  return 'Failed to connect to duel room WebSocket channel. Check your network or retry connection.';
+}
+
 export function useOnlineDuel(
   roomCode: string,
   initialRole: OnlineRole,
@@ -93,6 +130,10 @@ export function useOnlineDuel(
   const channelRef = useRef<RealtimeChannel | null>(null);
   const wrongTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef<number>(0);
+  const [retryNonce, setRetryNonce] = useState<number>(0);
+  const MAX_AUTO_RETRIES = 3;
 
   const defaultLevel = LEVELS.find((l) => l.id === 8) ?? LEVELS[7]; // Level 8 default
 
@@ -310,6 +351,21 @@ export function useOnlineDuel(
     };
   }, []);
 
+  /** Explicit manual retry connection */
+  const retryConnection = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    retryCountRef.current = 0;
+    setState((prev) => ({
+      ...prev,
+      connectionStatus: 'connecting',
+      errorMessage: null,
+    }));
+    setRetryNonce((n) => n + 1);
+  }, []);
+
   // ──────────────────────────────────────────────────────────────────────────
   // SUPABASE REALTIME CHANNEL LIFECYCLE
   // ──────────────────────────────────────────────────────────────────────────
@@ -320,6 +376,18 @@ export function useOnlineDuel(
 
     const clean = roomCode.trim().toUpperCase();
     const channelName = `duel-room:${clean}`;
+
+    // Clean up any lingering or duplicate channels for this room in Supabase client
+    try {
+      const existing = supabase
+        .getChannels()
+        .filter((ch) => ch.topic === `realtime:${channelName}` || ch.subTopic === channelName);
+      for (const ch of existing) {
+        supabase.removeChannel(ch);
+      }
+    } catch (e) {
+      console.warn('[Supabase Realtime] Error cleaning lingering channels:', e);
+    }
 
     const channel = supabase.channel(channelName, {
       config: {
@@ -408,18 +476,32 @@ export function useOnlineDuel(
       }
     });
 
-    // 3. Subscribe to the channel
-    channel.subscribe(async (status) => {
+    // 3. Subscribe to the channel with auto-retry and diagnostic logging
+    channel.subscribe(async (status, err) => {
       if (status === 'SUBSCRIBED') {
-        setState((prev) => ({ ...prev, connectionStatus: 'connected' }));
+        retryCountRef.current = 0;
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = null;
+        }
 
-        // Track our presence in the room
-        await channel.track({
-          id: localIdRef.current,
-          name: stateRef.current.localPlayer.name,
-          role: stateRef.current.role,
-          joinedAt: new Date().toISOString(),
-        });
+        setState((prev) => ({
+          ...prev,
+          connectionStatus: 'connected',
+          errorMessage: null,
+        }));
+
+        try {
+          // Track our presence in the room
+          await channel.track({
+            id: localIdRef.current,
+            name: stateRef.current.localPlayer.name,
+            role: stateRef.current.role,
+            joinedAt: new Date().toISOString(),
+          });
+        } catch (trackErr) {
+          console.warn('[Supabase Realtime] Presence track warning:', trackErr);
+        }
 
         // Broadcast player joined
         broadcastEvent({
@@ -432,22 +514,61 @@ export function useOnlineDuel(
           type: 'REQUEST_SYNC',
           fromId: localIdRef.current,
         });
-      } else if (status === 'CHANNEL_ERROR') {
-        setState((prev) => ({
-          ...prev,
-          connectionStatus: 'error',
-          errorMessage: 'Failed to connect to duel room WebSocket channel.',
-        }));
-      } else if (status === 'TIMED_OUT') {
-        setState((prev) => ({
-          ...prev,
-          connectionStatus: 'error',
-          errorMessage: 'Connection to duel room timed out.',
-        }));
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        const errorDesc = formatChannelError(status, err);
+        console.warn(`[Supabase Realtime] Channel ${status}:`, err || 'No error payload');
+
+        if (retryCountRef.current < MAX_AUTO_RETRIES) {
+          retryCountRef.current += 1;
+          const attempt = retryCountRef.current;
+          const delay = Math.min(1500 * Math.pow(2, attempt - 1), 6000);
+
+          setState((prev) => ({
+            ...prev,
+            connectionStatus: 'connecting',
+            errorMessage: `Connection lost. Auto-reconnecting... (Attempt ${attempt}/${MAX_AUTO_RETRIES})`,
+          }));
+
+          if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = setTimeout(() => {
+            setRetryNonce((n) => n + 1);
+          }, delay);
+        } else {
+          setState((prev) => ({
+            ...prev,
+            connectionStatus: 'error',
+            errorMessage: errorDesc,
+          }));
+        }
       }
     });
 
+    // Listen to network status changes and tab visibility to trigger seamless reconnection
+    const handleOnline = () => {
+      if (
+        stateRef.current.connectionStatus === 'error' ||
+        stateRef.current.connectionStatus === 'disconnected'
+      ) {
+        retryConnection();
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && stateRef.current.connectionStatus === 'error') {
+        retryConnection();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
       if (disconnectTimerRef.current) {
         clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
@@ -459,7 +580,7 @@ export function useOnlineDuel(
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [roomCode, broadcastEvent, createSyncPayload]);
+  }, [roomCode, broadcastEvent, createSyncPayload, retryNonce, retryConnection, MAX_AUTO_RETRIES]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // HANDLE INCOMING REMOTE EVENTS
@@ -768,16 +889,17 @@ export function useOnlineDuel(
       // 750ms reveal of wrong number & top red WRONG banner, then seamless sequence reset & turn switch
       wrongTimerRef.current = setTimeout(() => {
         wrongTimerRef.current = null;
+        if (stateRef.current.phase !== 'playing') return;
+
+        const nextTurnNumber = stateRef.current.turnNumber + 1;
+        broadcastEvent({
+          type: 'SWITCH_TURN',
+          nextRole,
+          turnNumber: nextTurnNumber,
+        });
+
         setState((prev) => {
           if (prev.phase !== 'playing') return prev;
-          const nextTurnNumber = prev.turnNumber + 1;
-
-          broadcastEvent({
-            type: 'SWITCH_TURN',
-            nextRole,
-            turnNumber: nextTurnNumber,
-          });
-
           return {
             ...prev,
             wrongNumber: null,
@@ -876,5 +998,6 @@ export function useOnlineDuel(
     rematchNewBoard,
     setPlayerName,
     leaveRoom,
+    retryConnection,
   };
 }

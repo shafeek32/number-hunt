@@ -350,5 +350,26 @@ describe('Online Multiplayer Duel Engine (Supabase Realtime Protocol)', () => {
       expect(state.activeRole).toBe('guest');
       expect(state.localPlayer.currentStreak).toBe(3);
     });
+
+    it('formats channel errors with informative guidance for auth, timeout, and general errors', async () => {
+      const { formatChannelError } = await import('../src/hooks/useOnlineDuel');
+
+      expect(formatChannelError('TIMED_OUT')).toContain('timed out');
+      expect(
+        formatChannelError('CHANNEL_ERROR', { message: 'UNAUTHORIZED_INVALID_API_KEY_TYPE' })
+      ).toContain('Supabase API credentials');
+      expect(
+        formatChannelError('CHANNEL_ERROR', { message: 'rate limit reached' })
+      ).toContain('rate limit');
+      expect(
+        formatChannelError('CHANNEL_ERROR', { message: 'Project is paused (code 503)' })
+      ).toContain('Restore project');
+      expect(
+        formatChannelError('CHANNEL_ERROR', new Error('Network socket disconnected'))
+      ).toContain('Network socket disconnected');
+      expect(formatChannelError('CHANNEL_ERROR')).toBe(
+        'Failed to connect to duel room WebSocket channel. Check your network or retry connection.'
+      );
+    });
   });
 });

@@ -143,6 +143,9 @@ function OnlineLobby() {
             maxLength={16}
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCreateRoom();
+            }}
             placeholder="e.g. SpeedMaster"
             className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] font-semibold text-sm focus:border-[var(--color-accent)] focus:outline-none transition-colors"
           />
@@ -201,6 +204,9 @@ function OnlineLobby() {
               maxLength={6}
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleJoinRoom();
+              }}
               placeholder="ROOM CODE"
               className="flex-1 px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] font-mono font-black text-center tracking-widest text-base focus:border-[var(--color-accent)] focus:outline-none transition-colors"
             />
@@ -251,6 +257,7 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
     rematchNewBoard,
     setPlayerName,
     leaveRoom,
+    retryConnection,
   } = useOnlineDuel(roomCode, explicitRole, initialName);
 
   const handleLeaveRoom = () => {
@@ -335,7 +342,11 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
             <span
               className={[
                 'w-2 h-2 rounded-full',
-                connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500',
+                connectionStatus === 'connected'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : connectionStatus === 'connecting'
+                  ? 'bg-amber-500 animate-pulse'
+                  : 'bg-red-500',
               ].join(' ')}
             />
             <span className="font-mono text-[10px] text-[var(--color-text-muted)] uppercase">
@@ -395,6 +406,10 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
                         maxLength={16}
                         value={editNameInput}
                         onChange={(e) => setEditNameInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveName();
+                          if (e.key === 'Escape') setIsEditingName(false);
+                        }}
                         placeholder={localPlayer.name}
                         className="px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-bold w-28 focus:outline-none focus:border-[var(--color-accent)]"
                         autoFocus
@@ -516,8 +531,32 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
         )}
 
         {errorMessage && (
-          <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500 text-red-500 text-xs">
-            {errorMessage}
+          <div className="mt-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-start gap-2.5">
+              <span className="text-base leading-none">⚠️</span>
+              <div>
+                <span className="font-semibold block text-red-300">{errorMessage}</span>
+                {connectionStatus === 'error' && (
+                  <span className="text-[11px] text-red-400/80 block mt-0.5">
+                    Click retry below or check your network connection.
+                  </span>
+                )}
+                {connectionStatus === 'connecting' && (
+                  <span className="text-[11px] text-amber-400/80 block mt-0.5 animate-pulse">
+                    Attempting to establish WebSocket channel...
+                  </span>
+                )}
+              </div>
+            </div>
+            {connectionStatus === 'error' && (
+              <button
+                type="button"
+                onClick={retryConnection}
+                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer shrink-0 self-end sm:self-center"
+              >
+                🔄 Retry Connection
+              </button>
+            )}
           </div>
         )}
       </PageContainer>
@@ -547,12 +586,48 @@ function OnlineRoom({ roomCode }: OnlineRoomProps) {
           <span className="px-2.5 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-mono text-xs">
             ROOM {roomCode} · ROUND {turnNumber} · LEVEL {currentLevel.id}
           </span>
-          <span className="text-xs font-mono font-bold text-emerald-500 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            LIVE
-          </span>
+          {connectionStatus === 'connected' ? (
+            <span className="text-xs font-mono font-bold text-emerald-500 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE
+            </span>
+          ) : connectionStatus === 'connecting' ? (
+            <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              RECONNECTING...
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={retryConnection}
+              className="text-xs font-mono font-bold text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors cursor-pointer"
+              title="Click to retry connection"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              RETRY CONNECT
+            </button>
+          )}
         </div>
       </div>
+
+      {/* In-Game Error Alert */}
+      {errorMessage && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{errorMessage}</span>
+          </div>
+          {connectionStatus === 'error' && (
+            <button
+              type="button"
+              onClick={retryConnection}
+              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] rounded uppercase transition-colors shrink-0 cursor-pointer"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Top Banner: Red WRONG Flash or Turn Indicator */}
       {isWrongEffect ? (

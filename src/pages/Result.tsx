@@ -89,8 +89,12 @@ export function Result() {
           text,
         });
         return;
-      } catch {
-        // User cancelled or share failed, fallback to clipboard
+      } catch (err: unknown) {
+        // User cancelled the share dialog (AbortError) - do not trigger clipboard fallback
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+        // Other share failure, fallback to clipboard below
       }
     }
 
