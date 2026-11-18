@@ -241,7 +241,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ─── 12. ADMIN VIEWS ─────────────────────────────────────────
-CREATE OR REPLACE VIEW public.v_flagged_games AS
+CREATE OR REPLACE VIEW public.v_flagged_games
+WITH (security_invoker = true) AS
   SELECT
     g.id,
     g.user_id,
@@ -267,7 +268,8 @@ CREATE OR REPLACE VIEW public.v_flagged_games AS
   WHERE g.is_flagged = true
   ORDER BY g.created_at DESC;
 
-CREATE OR REPLACE VIEW public.v_admin_overview AS
+CREATE OR REPLACE VIEW public.v_admin_overview
+WITH (security_invoker = true) AS
   SELECT
     (SELECT COUNT(*) FROM public.profiles) AS total_players,
     (SELECT COUNT(*) FROM public.games) AS total_games,
@@ -282,6 +284,6 @@ CREATE OR REPLACE VIEW public.v_admin_overview AS
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
-GRANT SELECT ON public.v_flagged_games TO anon, authenticated;
-GRANT SELECT ON public.v_admin_overview TO anon, authenticated;
+GRANT SELECT ON public.v_flagged_games TO authenticated;
+GRANT SELECT ON public.v_admin_overview TO authenticated;
 
